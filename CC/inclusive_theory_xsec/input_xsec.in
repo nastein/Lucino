@@ -1,0 +1,17 @@
+1000. 18.0                      # Enu[MeV] thetalept [deg]
+1                               # ilept=1 muon, other electron
+0      				# 1 if Global Fermi Gas
+0                                # charged current 0, neutral current 1  
+6  12                                    # nZ, nA
+221.0d0                                   # Fermi momentum
+1.00                                   # mstar
+'pke12_tot.data'  # sf filename
+40 80                                  # np0, ne0
+400 80                               # np nw
+300.                                   # wmax
+0.                                    #wmin
+2.0      500000.0                             # eps1, eps2
+
+# 200 201 'pke_o16_scgf.dat'
+# 40 80  'pke12_tot.data'
+# 200   150 'pke16.data'

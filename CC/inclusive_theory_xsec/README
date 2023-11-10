@@ -1,0 +1,2 @@
+Fortran calculations to compute neutrino-nucleus QE cross section via constructing nuclear current operators.
+Current operator is then used to compute response tensor

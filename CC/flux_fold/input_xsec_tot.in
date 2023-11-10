@@ -1,0 +1,13 @@
+40000               #number of events to generate
+100000			#number of samples per run
+7131094				#irn
+1                   # ilept=1 muon, other electron
+221.0d0             # Fermi momentum
+0.0d0				#Q2min lim (MeV^2)
+6  12              # nZ, nA
+0      				# 1 if Global Fermi Gas 
+40   80              # np0 ne
+400                  # np
+'flux_nu.dat'	   # flux_fname
+200		   #nenu
+
