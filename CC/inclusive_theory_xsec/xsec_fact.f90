@@ -4,7 +4,7 @@
     !xmLambda=1115.70d0
     ![hbarc] = MeV * fm 
     ![G_F] = 
-    real*8, parameter :: hbarc=197.327053d0,G_F = 1.1664e-11*hbarc**2, cb=0.9741699d0,sb=sqrt(1.0d0-cb**2)
+    real*8, parameter :: hbarc=197.327053d0,G_F = 1.1803e-11*hbarc**2, cb=0.97425d0,sb=sqrt(1.0d0-cb**2)
     real*8, parameter :: pi= acos(-1.0d0),c0=1.0d0/16.0d0/pi/pi,sw2=0.2224d0
     integer*4, save :: iproc,ip,im
     real*8, save :: Alept(5),resp(5)
@@ -132,7 +132,7 @@
        pp_4(4)=xk_z+xq
        call current_init(p_4, pp_4, q_4,qt_4)!initialize four momentum
        call define_spinors()!create four spinors
-       call sf_hyp(q2t)!calculates form factors and response tensor
+       call sf_hyp(q2)!calculates form factors and response tensor
        sig = sig+0.5*resp*hphi !factor of 1/2 comes from averaging over spins
     enddo
 
@@ -171,7 +171,7 @@
        ffa=-0.5d0*ffa+0.5d0*ffsa
     endif
 
-    !ffp = 0.0d0
+    ffp = 0.0d0
     call det_Ja(ff1v, ff2v, ffa, ffp)
     call det_res1b(resp)
 

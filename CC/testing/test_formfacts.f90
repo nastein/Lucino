@@ -9,17 +9,18 @@ program test_ff
   Q2step = 2.0d0/1000.0
 
 
-  fname='kellyFF_fortran.out'
-  fname=trim(fname)
-  open(unit=7, file=fname)
+  !fname='kellyFF_fortran.out'
+  !fname=trim(fname)
+  !open(unit=7, file=fname)
 
-  Q2 = 0.0d0
-  do ig=0,999
-    Q2 = Q2 + Q2step
+  Q2 = 0.30704841822850487d0
+  !do ig=0,999
+    !Q2 = Q2 + Q2step
     call nform(Q2/hc/hc,ff1p,ff1n,ff2p,ff2n,ffa,ffp)
     ff1v=ff1p - ff1n
     ff2v=ff2p - ff2n
-    write(7,*) Q2, ff1v, ff2v, ffa, ffp
-  enddo
+    !write(,*) Q2, ff1v, ff2v, ffa, ffp
+    write(6,*) Q2, ff1v, ff2v, ffa, ffp
+  !enddo
 
 end program 

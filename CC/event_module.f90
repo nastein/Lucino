@@ -6,61 +6,115 @@ module event_module
         real*8 :: p4(4)
     endtype 
 
-    type, extends(particle_t) :: event_t 
+    type :: event_t 
         type(particle_t), allocatable :: particles(:)
         real*8 :: weight=0
         logical :: unweighted=.FALSE.
     endtype
 
-    type, extends(event_t) :: event_container_t
+    type :: event_container_t
         type(event_t), allocatable :: events(:)
         real*8 :: max_weight=0
-        integer*4 :: num_accepted_events=0
+        integer*4 :: size = 0
         integer*4 :: num_gen_events=0
+        integer*4 :: capacity = 0
+    contains
+        procedure :: add_event => vector_add_event
     endtype
 
     contains
 
-        subroutine event_container_init(event_container, numEvents)
-            type(event_container_t), intent(inout) :: event_container
-            integer*4 :: numEvents
+        subroutine vector_add_event(this, event)
+            class(event_container_t), intent(inout) :: this 
+            type(event_t), intent(in) :: event 
 
-            allocate(event_container%events(numEvents))
-        end subroutine event_container_init
+            if (this%size.eq.this%capacity) then
+                call increase_event_container_capacity(this)
+            endif
+            !print*,'Added event'
+            this%size = this%size + 1
+            this%events(this%size) = event
+        end subroutine vector_add_event
 
-        subroutine print_event_container(event_container)
-            type(event_container_t), intent(in) :: event_container
-            integer*4 :: n,i 
-            
-            do i=1,event_container%num_accepted_events
-                if(event_container%events(i)%weight.ne.0.0d0) then
-                    call print_event(event_container%events(i))
-                endif 
-            enddo 
-            write(6,*) 'Maximum weight = ', event_container%max_weight
-            write(6,*) 'Accepted events = ', event_container%num_accepted_events
+        subroutine increase_event_container_capacity(this)
+            type(event_container_t), intent(inout) :: this 
+            type(event_t), allocatable :: temp(:)
+            integer*4 :: new_capacity
 
-        end subroutine print_event_container
+            if(this%capacity.eq.0) then
+                new_capacity = 1
+            else
+                new_capacity = this%capacity * 2
+            endif
 
-        subroutine print_unweighted_events(event_container,fileunit)
-            type(event_container_t), intent(inout) :: event_container
-            integer*4 :: n,i,fileunit,eventnum
+            allocate(temp(new_capacity))
+            if (this%size.gt.0) then
+                temp(1:this%size) = this%events(1:this%size)
+            endif
+
+            call move_alloc(temp, this%events)
+            this%capacity = new_capacity
+        end subroutine increase_event_container_capacity
+
+        subroutine move_alloc(source, dest)
+            type(event_t), allocatable, intent(inout) :: source(:)
+            type(event_t), allocatable, intent(out) :: dest(:)
+            dest = source
+            deallocate(source)
+        end subroutine move_alloc
+
+        subroutine print_unweighted_events(this,fileunit)
+            type(event_container_t), intent(inout) :: this
+            integer*4 :: i,fileunit,eventnum
 
             eventnum=0
-            n = event_container%num_accepted_events
             
-            do i=1,n
-                if(event_container%events(i)%unweighted) then
-                    !call rotate_event(event_container%events(i))
-                    call print_unweighted_event(event_container%events(i),&
-                        &   eventnum, fileunit)
+            do i=1,this%size
+                if(this%events(i)%unweighted) then
+                    call print_event(this%events(i),fileunit)
                     eventnum = eventnum+1
                 endif 
             enddo 
 
-            event_container%num_gen_events = eventnum
+            this%num_gen_events = eventnum
 
         end subroutine print_unweighted_events
+
+        subroutine unweight_events(this)
+            type(event_container_t), intent(inout) :: this
+            integer*4 :: i
+            real*8 :: ratio,r
+
+            do i=1,this%size
+                ratio = this%events(i)%weight/this%max_weight
+                r = ran()
+
+                if(r.le.ratio) then
+                    this%events(i)%unweighted=.TRUE.
+                    print*,'r = ', r
+                    print*,'ratio = ', ratio
+                endif
+            enddo
+
+        end subroutine unweight_events
+
+        subroutine event_init(event,numPart)
+            type(event_t), intent(inout) :: event
+            integer*4 :: numPart 
+
+            allocate(event%particles(numPart))
+        end subroutine event_init
+
+        subroutine print_event(event,fileunit)
+            type(event_t), intent(in) :: event 
+            integer*4 :: n,i,fileunit
+
+            n = size(event%particles)
+
+            do i=1,n
+                write(fileunit,*) event%particles(i)%p4 
+            enddo
+        end subroutine print_event
 
         subroutine rotate_event(event)
             type(event_t), intent(inout) :: event 
@@ -82,58 +136,8 @@ module event_module
                 event%particles(i)%p4(2:4) = matmul(rot_matrix, event%particles(i)%p4(2:4))
             enddo
 
-
-
         end subroutine rotate_event
 
-        subroutine event_unweight(event_container)
-            type(event_container_t), intent(inout) :: event_container
-            integer*4 :: i
-            real*8 :: ratio,r
-            real*8 :: max
-
-            max = event_container%max_weight
-
-            do i=1,event_container%num_accepted_events
-                ratio = event_container%events(i)%weight/max
-                r = ran()
-                if(r.le.ratio) event_container%events(i)%unweighted=.TRUE.
-            enddo
-
-        end subroutine event_unweight
-
-        subroutine event_init(event,numPart)
-            type(event_t), intent(inout) :: event
-            integer*4 :: numPart 
-
-            allocate(event%particles(numPart))
-        end subroutine event_init
-
-        subroutine print_event(event)
-            type(event_t), intent(in) :: event 
-            integer*4 :: n,i
-
-            n = size(event%particles)
-
-            write(6,*) 'weight = ', event%weight
-            write(6,*) 'unweighted = ', event%unweighted
-            do i=1,n
-                !write(6,*) 'i = ', i
-                write(6,*) '    P4 = ', event%particles(i)%p4 
-            enddo
-        end subroutine print_event
-
-        subroutine print_unweighted_event(event,eventnum,fileunit)
-            type(event_t), intent(in) :: event 
-            integer*4 :: n,i,fileunit,eventnum
-
-            n = size(event%particles)
-
-            !write(fileunit,*) eventnum
-            do i=1,n
-                write(fileunit,*) event%particles(i)%p4 
-            enddo
-        end subroutine print_unweighted_event
 end module
 
 ! program test

@@ -410,23 +410,6 @@ subroutine bisec_ale(rtbis,func,fd,nd,x1,x2,xacc)
 
 end subroutine bisec_ale
 
-subroutine logspace_arr(min, max, nBins, arr)
-   implicit none
-   integer*4 :: nBins,i 
-   real*8 :: min, max, logMin, logMax, delta, accDelta, arr(nBins)
-
-   logMin = LOG10(min)
-   logMax = LOG10(max)
-   delta = (logMax - logMin)/nBins
-
-   accDelta = delta 
-   do i=1,nBins
-      arr(i) = 10.0**(logMin + accDelta)
-      accDelta = accDelta + delta
-   enddo
-   return 
-end subroutine logspace_arr
-
 subroutine setrn(irnin)
     integer, parameter :: i8=selected_int_kind(15)
     integer, parameter :: r8=selected_real_kind(15,9)
@@ -468,27 +451,12 @@ function ran()
     return
 end function ran
 
-!Given a 3d vector, rotate the vector so that it points along z
-subroutine rotate_to_z(vector)
-   implicit none
-   real*8 :: vector(3)
-   real*8 :: rotated_vector(3), angle, radian, rotation_matrix(3,3)
-   integer*4 :: i
-
-   do i = 1,3
-      write(6,*)"vector(", i, ") = ", vector(i)
-   enddo
-
-   angle = atan2(sqrt(vector(1)**2 + vector(2)**2), vector(3))
-
-   rotation_matrix = reshape([cos(angle), -sin(angle), 0.0d0, &
-                            sin(angle), cos(angle), 0.0d0, &
-                            0.0d0, 0.0d0, 1.0d0], [3, 3])
-   rotated_vector = matmul(rotation_matrix,vector)
-   do i = 1,3
-      write(6,*)"Rotated vector(", i, ") = ", rotated_vector(i)
-   enddo
-end subroutine rotate_to_z
+subroutine getrn(irnout)
+    integer, parameter :: i8=selected_int_kind(15)
+    integer, parameter :: r8=selected_real_kind(15,9)
+    integer(kind=i8) :: irnout
+    irnout=irn
+end subroutine getrn 
 
 end module mathtool
     

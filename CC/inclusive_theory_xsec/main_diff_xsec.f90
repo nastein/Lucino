@@ -190,7 +190,7 @@ program response_ia
              emu = enu - w(iw) !Energy of lepton
              pmu = sqrt( emu**2 - mlept**2 ) !Magnitude of momentum of lepton 
              q2_p=2.0d0*Enu*emu*(1.0d0-(pmu/emu)*cos(thetalept)) - mlept**2 !Q^2 = -q^2
-             if(q2_p.lt.100.0d0) cycle !Genie cuts on Q2
+             !if(q2_p.lt.100.0d0) cycle !Genie cuts on Q2
              !write(6,*)'Q2 = ', q2_p/1000000.0
              qval=sqrt(q2_p+ w(iw)**2) !$\sqrt{Q^{2} + w^{2}}
              res=0.0d0
@@ -212,7 +212,7 @@ program response_ia
                    if(wt(iw).lt.0.0d0) cycle
                    pf=sqrt(p(j)**2+qval**2+2.0d0*qval*p(j)*costheta_p)
                    !if(dp(j).le.small) cycle
-                   if (pf.lt.kf) cycle
+                   !if (pf.lt.kf) cycle
                    epf=sqrt(pf**2+mY(im)**2)
                    call sig_nuN_CCQE(mlept,qval,w(iw),wt(iw),p(j),pf,enu,thetalept,sig)  
                    if(fg.eq.1) then

@@ -1,30 +1,37 @@
 module mc_module
    use event_module
    implicit none 
-   integer*4, private, save :: nev,xA,nZ,i_fg,np0,np,ne
+   integer*4, private, save :: nev,xA,nZ,i_fg,np0,np,ne,nwlk,gen_events
    integer*4, private, parameter :: neq=10000,nvoid=10
    real*8, private, save ::  xpf,xpmax
    real*8, private, save:: norm
    real*8, private, save:: mlept
-   real*8, private, save:: q2min
+   real*8, private, save:: q2min,q2max,wmax
    real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0,ppmax=1.0d0*1.e3
    real*8, private, parameter :: alpha=1.0d0/137.0d0
    real*8, private, allocatable :: pv(:),p(:),dp(:,:),ep(:),Pke(:,:),nk(:)
    real*8, parameter :: mp=938.272d0,mn=939.565d0,mu=931.494061d0
    real*8, parameter :: xme=0.0d0
-   real*8, parameter :: small=1e-12
+   real*8, parameter :: small=1e-12 
+   integer*8, private, allocatable, save :: irn_int(:),irn_event(:)
 contains
 
-subroutine mc_init(i_fg_in,nev_in,xpf_in,mlept_in,xA_in,nZ_in,np_in,np0_in,ne_in,q2min_in)
+subroutine mc_init(gen_events_in, i_fg_in,irn_int_in, &
+      &  irn_event_in,nev_in,nwlk_in,xpf_in, &
+      &  mlept_in,xA_in,nZ_in,np_in,np0_in,ne_in,q2min_in)
    use mathtool
    use event_module
    implicit none
-   integer*4 :: nev_in,nZ_in,xA_in,i_fg_in,np_in,i,j,ne_in,np0_in,ne0,ien
-   integer*8 :: irn_in
+
+   integer*8 :: irn_int_in(nwlk_in),irn_event_in(nwlk_in)
+   integer*4 :: nev_in,nZ_in,xA_in,i_fg_in,np_in,i,j,ne_in,np0_in,ne0,ien,nwlk_in
+   integer*4 :: gen_events_in
    real*8 :: xpf_in,mlept_in,hp,he,thetalept_in,dummy,q2min_in
    real*8, allocatable :: dp0(:,:)
    
+   gen_events=gen_events_in
    nev=nev_in
+   nwlk=nwlk_in
    mlept=mlept_in
    xpf=xpf_in
    xA=xA_in
@@ -34,6 +41,11 @@ subroutine mc_init(i_fg_in,nev_in,xpf_in,mlept_in,xA_in,nZ_in,np_in,np0_in,ne_in
    np0=np0_in
    ne=ne_in
    q2min=q2min_in
+
+
+   allocate(irn_int(nwlk),irn_event(nwlk))
+   irn_int(:)=irn_int_in(:)
+   irn_event(:) = irn_event_in(:)
 
    if(i_fg.ne.1) then
 
@@ -133,33 +145,29 @@ subroutine mc_init(i_fg_in,nev_in,xpf_in,mlept_in,xA_in,nZ_in,np_in,np0_in,ne_in
    ! this needs to be updated
    write(6,*) 'norm',norm
 
-
-
 end subroutine
 
-subroutine mc_eval(Enu, r_avg, r_err, my_events, irn)
+subroutine mc_eval(Enu, xsec, xsec_err, my_events)
    use event_module
    use mathtool
    use dirac_matrices
+   !use mympi
    implicit none
 
    integer*4 :: nA,nw,i,j,k,l,ip,fg
    integer*4 :: ie,ie0,iq,ien,iv
-   integer*8 :: irn
-   real*8 :: Enu,wmax,qval,sig
-   real*8 :: pmu,q2max,costheta_p,res,q2_p,np1
-   real*8 :: enu_max,henu,r_avg,r_err
+   real*8 :: Enu,qval,sig
+   real*8 :: pmu,costheta_p,res,q2_p,np1
+   real*8 :: enu_max,henu,r_avg,r_err, xsec, xsec_err
 
-   integer*4 :: j_o,ien_o,j_n,ien_n,i_acc,i_avg
-   real*8 :: q2_o,w_o,q2_n,w_n,q2max_c
-   real*8 :: g_o,g_n,f_o,f_n
+   integer*4 :: j_o(nwlk),ien_o(nwlk),j_n(nwlk),ien_n(nwlk),i_acc,i_avg
+   real*8 :: q2_o(nwlk),w_o(nwlk),q2_n(nwlk),w_n(nwlk),q2max_c
+   real*8 :: g_o(nwlk),g_n(nwlk),f_o(nwlk),f_n(nwlk)
+
    real*8 :: maximum_weight
    type(event_container_t), intent(inout) :: my_events
-   type(event_t) :: my_event 
-   
-   call event_init(my_event,4)
-
-   call setrn(irn)
+   type(event_t) :: test_event 
+   call event_init(test_event,4)
           
    call masses_in(mn,mp) 
 
@@ -178,62 +186,157 @@ subroutine mc_eval(Enu, r_avg, r_err, my_events, irn)
       return
    endif
 
-   do while(g_o.le.0.0d0)
-      j_o=1+int(np*ran())
-      ien_o=1+int(ne*ran())
-      q2_o=q2min + (q2max-q2min)*ran()
-      w_o=wmax*ran()
-      call g_eval(p(j_o),PkE(j_o,ien_o),q2_o,w_o,wmax,q2max-q2min,g_o)
-   enddo
+   !Initialize integrator to a random start point
+   call mc_random_startpoint(g_o,j_o,ien_o,q2_o,w_o)
 
-   do iv=1,nev 
-      j_n=nint(j_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
-      ien_n=nint(ien_o+0.05d0*ne*(-1.0d0+2.0d0*ran()))
-      if(j_n.le.np.and.j_n.ge.1.and.ien_n.le.ne.and.ien_n.ge.1) then
-         q2_n=q2min + (q2max-q2min)*ran()
-         w_n=wmax*ran()
-         call g_eval(p(j_n),PkE(j_n,ien_n),q2_n,w_n,wmax,q2max-q2min,g_n)
-      else
-         g_n=0.0d0 
-      endif
-      if(g_n/g_o.ge.ran()) then
-         j_o=j_n
-         ien_o=ien_n
-         q2_o=q2_n
-         w_o=w_n
-         g_o=g_n
-         i_acc=i_acc+1
-      endif
-      if(iv.ge.neq.and.mod(iv,nvoid).eq.0) then
-         call f_eval(j_o,ien_o,q2_o,w_o,p(j_o),PkE(j_o,ien_o),&
-            &            Enu,mlept,mn,mp,ep(ien_o),xpf,f_o, my_event)
-         
-         f_o=f_o*(2.0d0*pi) *1.e12*dble(nZ)/g_o
+   !Pick random start values for xsec and err (these don't matter)
+   xsec = 10.0d0 
+   xsec_err = 100.0d0
+   iv=1
 
-         if(f_o.ge.maximum_weight) then 
-            maximum_weight = f_o 
+   !Compute total cross section to necessary precision
+   do while(xsec_err.gt.(0.01d0*xsec))
+      do j=1,nwlk
+         call setrn(irn_int(j))
+         call mc_step(j_o(j),ien_o(j),q2_o(j),w_o(j),g_o(j),i_acc)
+         if(iv.ge.neq.and.mod(iv,nvoid).eq.0) then 
+            call mc_calculate_xsec(Enu,j_o(j),ien_o(j),q2_o(j),w_o(j), &
+               &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.false.)
          endif
+         call getrn(irn_int(j))
+      enddo
 
-         my_event%weight = f_o
-         my_event%unweighted = .FALSE.
-         my_events%events(i_avg+1)=my_event
-
-         r_avg=r_avg+f_o
-         r_err=r_err+f_o**2
-         i_avg=i_avg+1
-
+      if(i_avg.gt.0) then
+         !print*,'do we get in here?'
+         xsec=r_avg/dble(i_avg)
+         xsec_err=r_err/dble(i_avg)
+         xsec_err=sqrt((xsec_err-xsec**2)/dble(i_avg-1))
       endif
+      iv = iv+1
    enddo
 
+   print*,'Computed xsec = ', xsec 
+   print*, 'Computed xsec err = ', xsec_err
+
+   !Safety factor for the max weight
+   maximum_weight = maximum_weight*1.6d0
+
+   print*,'Maxmimum weight = ', maximum_weight
    my_events%max_weight = maximum_weight
-   my_events%num_accepted_events = i_avg
-  
-   r_avg=r_avg/dble(i_avg)
-   r_err=r_err/dble(i_avg)
-   r_err=sqrt((r_err-r_avg**2)/dble(i_avg-1))
+
+   !Now start to generate events
+   do while(my_events%size.lt.gen_events)
+      do j=1,nwlk 
+         call setrn(irn_event(j))
+         call mc_step(j_o(j),ien_o(j),q2_o(j),w_o(j),g_o(j),i_acc)
+         if(iv.ge.neq.and.mod(iv,nvoid).eq.0) then 
+            call mc_calculate_xsec(Enu,j_o(j),ien_o(j),q2_o(j),w_o(j), &
+               &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.true.)
+         endif
+         call getrn(irn_event(j))
+      enddo
+
+      call update_progress_bar(my_events%size, gen_events)
+
+      if(i_avg.gt.0) then
+         xsec=r_avg/dble(i_avg)
+         xsec_err=r_err/dble(i_avg)
+         xsec_err=sqrt((xsec_err-xsec**2)/dble(i_avg-1))
+      endif
+      iv = iv+1
+   enddo
 
    return
+
 end subroutine
+
+subroutine mc_random_startpoint(g,j,ien,q2,w)
+   integer*4 :: i
+   integer*4,intent(out) :: j(nwlk),ien(nwlk)
+   real*8,intent(out) :: q2(nwlk),w(nwlk),g(nwlk)
+
+   do i=1,nwlk
+      call setrn(irn_int(i))
+      do while(g(i).le.0.0d0)
+         j(i)=1+int(np*ran())
+         ien(i)=1+int(ne*ran())
+         q2(i)=q2min + (q2max-q2min)*ran()
+         w(i)=wmax*ran()
+         call g_eval(p(j(i)),PkE(j(i),ien(i)),q2(i),w(i),wmax,q2max-q2min,g(i))
+      enddo
+      call getrn(irn_int(i))
+   enddo
+end subroutine mc_random_startpoint
+
+subroutine mc_step(j_o,ien_o,q2_o,w_o,g_o,i_acc)
+   integer*4 :: j_n,ien_n
+   integer*4,intent(inout) :: i_acc
+   integer*4,intent(out) :: j_o,ien_o
+   real*8 :: q2_n,w_n,g_n
+   real*8,intent(out) :: q2_o,w_o,g_o
+   j_n=nint(j_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
+   ien_n=nint(ien_o+0.05d0*ne*(-1.0d0+2.0d0*ran()))
+   if(j_n.le.np.and.j_n.ge.1.and.ien_n.le.ne.and.ien_n.ge.1) then
+      q2_n=q2min + (q2max-q2min)*ran()
+      w_n=wmax*ran()
+      call g_eval(p(j_n),PkE(j_n,ien_n),q2_n,w_n,wmax,q2max-q2min,g_n)
+   else
+      g_n=0.0d0 
+   endif
+   if(g_n/g_o.ge.ran()) then
+      j_o=j_n
+      ien_o=ien_n
+      q2_o=q2_n
+      w_o=w_n
+      g_o=g_n
+      i_acc=i_acc+1
+   endif
+end subroutine mc_step
+
+subroutine mc_calculate_xsec(Enu,j,ien,q2,w,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
+   type(event_container_t), intent(inout) :: events
+   type(event_t) :: event 
+   logical :: eventgen
+   integer*4,intent(in) :: j,ien
+   integer*4,intent(inout):: i_avg
+   real*8,intent(in) :: q2,w,g,Enu
+   real*8,intent(inout) :: max_weight,r_avg,r_err
+   real*8 :: ratio,f,r
+
+   call event_init(event,4)
+
+   call f_eval(j,ien,q2,w,p(j),PkE(j,ien),&
+      &  Enu,mlept,mn,mp,ep(ien),xpf,f,event)
+
+   f=f*(2.0d0*pi) *1.e12*dble(nZ)/g
+
+   !print*,'f = ', f
+
+   if(f.ge.max_weight) then
+      if(eventgen.eqv..true.) then
+         print*,'This should never happen!'
+      endif 
+      max_weight = f 
+      print*,'max weight = ', max_weight
+   endif
+
+   !If we're generating events, unweight the event
+   if(eventgen.eqv..true.) then
+      event%weight = f
+      event%unweighted = .FALSE.
+      ratio = f/events%max_weight
+      r = ran()
+      !Only add unweighted events to the file
+      if(r.le.ratio) then
+         event%unweighted=.TRUE.
+         call events%add_event(event)
+      endif
+   endif
+
+   r_avg=r_avg+f
+   r_err=r_err+f**2
+   i_avg=i_avg+1
+end subroutine mc_calculate_xsec
 
 subroutine f_eval(j,ien,q2,w,pj,np1,enu_v,mlept,mqe,mY,ee0,kf,f,my_event_in)
    use event_module
@@ -335,6 +438,28 @@ subroutine g_eval(pj,PkE,q2,w,wmax,q2max,g)
     
    return
 end subroutine g_eval
+
+subroutine update_progress_bar(current_step, total_steps)
+          integer*4, intent(in) :: current_step, total_steps
+          real*8 :: percent_done
+          integer*4 :: bar_width, num_hashes
+
+          ! Calculate the progress percentage
+          percent_done = real(current_step) / real(total_steps) * 100.0
+
+          ! Calculate the number of hashes to display in the progress bar
+          bar_width = 100
+          num_hashes = int(percent_done * real(bar_width) / 100.0)
+
+          ! Clear the line and print the progress bar
+          write(*, "('Progress: [', A, A, '] ', F3.0, '%')", advance="no") &
+            repeat("=", num_hashes), repeat(" ", bar_width - num_hashes), percent_done
+          ! Move the cursor to the beginning of the line
+          write(*, '(A1)', advance="no") char(13)
+          
+
+      end subroutine update_progress_bar
+
 
 
 end module 

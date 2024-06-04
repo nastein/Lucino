@@ -70,7 +70,7 @@
      MAsq=1.0d0**2
      !MAsq=0.994989**2
 !     Masq=1.350**2
-     Lambdasq = 0.840d0**2
+     Lambdasq = 0.7174d0
 
      G_D=1.0d0/(1.0d0+Q2G/Lambdasq)**2
      G_A=-gan1/(1.0d0+Q2G/MAsq)**2
