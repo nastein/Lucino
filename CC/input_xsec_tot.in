@@ -1,8 +1,9 @@
-100000               #number of events to generate
+100000             #number of events to generate
 256   			#number of walkers
 1000. 				#enu
-84721				#irn0
-18293				#irn1 
+83721				#irn0
+18223				#irn1 
+0.005d0              #total xsec accuracy
 1                   # ilept=1 muon, other electron
 221.0d0             # Fermi momentum
 100.0d0				#Q2min lim (MeV^2)

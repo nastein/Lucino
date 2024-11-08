@@ -328,12 +328,9 @@ subroutine f_eval(j,ien,q2,w,pj,np1,enu_v,mlept,mqe,mY,ee0,kf,f,my_event_in)
    my_event_in%particles = my_particles
 
    call sig_nuN_CCQE(pdel,pot_del,np_del,qval,w,wt,probeP4,outlepP4,innucP4,outnucP4,inspecP4,outspecP4,spec_iso,enu_v,Msq)
-   !write(6,*)'Msq = ', Msq
 
    !normalization of differential dp1
    dp1=np1*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
-   !write(6,*)'dp1 = ', dp1
-
 
    !normalization of differential dp2
    if(i_fg.eq.1) then 
@@ -343,18 +340,8 @@ subroutine f_eval(j,ien,q2,w,pj,np1,enu_v,mlept,mqe,mY,ee0,kf,f,my_event_in)
       dp2=dp2*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
    endif
 
-   !write(6,*)'dp2 = ', dp2
-
    !Compute prefactors for CC cross section
    sig0 = (G_F*cb/hbarc)**2 /(2.0d0*pi)*pmu*emu
-   !write(6,*)'sig0 = ', sig0
-
-   !write(6,*)'rho = ', rho
-   !write(6,*)'pj = ', pj
-   !write(6,*)'xA = ', dble(xA)
-   !write(6,*)'epf = ', epf 
-   !write(6,*)'qval = ', qval
-   !write(6,*)'p2 = ', p2
 
    !Compute cross section
    sig = (dble(xA)/rho)*dp1*pj**2*(Msq)*epf/(pj*qval)/(2.0d0*pi)**3 &

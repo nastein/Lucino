@@ -4,6 +4,7 @@ module mc_module
    integer*4, private, save :: nev,xA,nZ,i_fg,np0,np,ne,nwlk,gen_events
    integer*4, private, parameter :: neq=10000,nvoid=10
    real*8, private, save ::  xpf,xpmax
+   real*8, private, save :: xsec_acc
    real*8, private, save:: norm
    real*8, private, save:: mlept
    real*8, private, save:: q2min,q2max,wmax
@@ -16,20 +17,22 @@ module mc_module
    integer*8, private, allocatable, save :: irn_int(:),irn_event(:)
 contains
 
-subroutine mc_init(gen_events_in, i_fg_in,irn_int_in, &
+subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
       &  irn_event_in,nev_in,nwlk_in,xpf_in, &
       &  mlept_in,xA_in,nZ_in,np_in,np0_in,ne_in,q2min_in)
    use mathtool
    use event_module
+   use mympi
    implicit none
 
    integer*8 :: irn_int_in(nwlk_in),irn_event_in(nwlk_in)
    integer*4 :: nev_in,nZ_in,xA_in,i_fg_in,np_in,i,j,ne_in,np0_in,ne0,ien,nwlk_in
    integer*4 :: gen_events_in
-   real*8 :: xpf_in,mlept_in,hp,he,thetalept_in,dummy,q2min_in
+   real*8 :: xpf_in,mlept_in,hp,he,thetalept_in,dummy,q2min_in,xsec_acc_in
    real*8, allocatable :: dp0(:,:)
    
    gen_events=gen_events_in
+   xsec_acc=xsec_acc_in
    nev=nev_in
    nwlk=nwlk_in
    mlept=mlept_in
@@ -108,7 +111,8 @@ subroutine mc_init(gen_events_in, i_fg_in,irn_int_in, &
    enddo
 
    norm = sum(pv(:)**2*nk(:))*4.d0*pi*hp
-   write(6,*)'nk norm = ', norm
+   
+   if(myrank().eq.0) write(6,*)'nk norm = ', norm
 
    if(i_fg.eq.1) then
       np=2*np0
@@ -143,7 +147,7 @@ subroutine mc_init(gen_events_in, i_fg_in,irn_int_in, &
       norm=norm+sum(PkE(i,:))*p(i)**2*4.0d0*pi*(p(2)-p(1))*he 
    enddo
    ! this needs to be updated
-   write(6,*) 'norm',norm
+   if(myrank().eq.0) write(6,*) 'norm',norm
 
 end subroutine
 
@@ -151,23 +155,22 @@ subroutine mc_eval(Enu, xsec, xsec_err, my_events)
    use event_module
    use mathtool
    use dirac_matrices
-   !use mympi
+   use mympi
    implicit none
 
+   integer, parameter :: i4=selected_int_kind(9)
+   integer(kind=i4) :: ierror
+   integer*4 :: j_o(nwlk),ien_o(nwlk),j_n(nwlk),ien_n(nwlk),i_acc,i_avg,i_avg_tot
    integer*4 :: nA,nw,i,j,k,l,ip,fg
    integer*4 :: ie,ie0,iq,ien,iv
    real*8 :: Enu,qval,sig
    real*8 :: pmu,costheta_p,res,q2_p,np1
    real*8 :: enu_max,henu,r_avg,r_err, xsec, xsec_err
-
-   integer*4 :: j_o(nwlk),ien_o(nwlk),j_n(nwlk),ien_n(nwlk),i_acc,i_avg
+   real*8 :: xsec_tot, xsec_err_tot
    real*8 :: q2_o(nwlk),w_o(nwlk),q2_n(nwlk),w_n(nwlk),q2max_c
    real*8 :: g_o(nwlk),g_n(nwlk),f_o(nwlk),f_n(nwlk)
-
-   real*8 :: maximum_weight
+   real*8 :: maximum_weight, global_max_weight
    type(event_container_t), intent(inout) :: my_events
-   type(event_t) :: test_event 
-   call event_init(test_event,4)
           
    call masses_in(mn,mp) 
 
@@ -192,10 +195,12 @@ subroutine mc_eval(Enu, xsec, xsec_err, my_events)
    !Pick random start values for xsec and err (these don't matter)
    xsec = 10.0d0 
    xsec_err = 100.0d0
+   xsec_tot = 10.0d0 
+   xsec_err_tot = 100.0d0
    iv=1
 
    !Compute total cross section to necessary precision
-   do while(xsec_err.gt.(0.01d0*xsec))
+   do 
       do j=1,nwlk
          call setrn(irn_int(j))
          call mc_step(j_o(j),ien_o(j),q2_o(j),w_o(j),g_o(j),i_acc)
@@ -207,28 +212,51 @@ subroutine mc_eval(Enu, xsec, xsec_err, my_events)
       enddo
 
       if(i_avg.gt.0) then
-         !print*,'do we get in here?'
-         xsec=r_avg/dble(i_avg)
-         xsec_err=r_err/dble(i_avg)
-         xsec_err=sqrt((xsec_err-xsec**2)/dble(i_avg-1))
+         xsec=r_avg
+         xsec_err=r_err
+         !Average xsec over all processes so far
+         call addall(xsec,xsec_tot)
+         call addall(xsec_err,xsec_err_tot)
+         call addall(i_avg,i_avg_tot)
+         if (myrank().eq.0) then
+            xsec_tot=xsec_tot/dble(i_avg_tot)
+            xsec_err_tot=xsec_err_tot/dble(i_avg_tot)
+            xsec_err_tot=sqrt((xsec_err_tot-xsec_tot**2)/dble(i_avg_tot-1))
+         endif         
       endif
+
       iv = iv+1
+      !Broadcast xsec and err to everyone
+      call bcast(xsec_tot)
+      call bcast(xsec_err_tot)
+      !If we've hit our accuracy goal
+      if (xsec_err_tot < xsec_acc*xsec_tot) exit
+      call MPI_Barrier(mpi_comm_world,ierror)
    enddo
 
-   print*,'Computed xsec = ', xsec 
-   print*, 'Computed xsec err = ', xsec_err
+   if (myrank().eq.0) then
+      print*,'Cross section computed ', xsec_tot  
+      print*,'Error = ', xsec_err_tot
+   endif
 
-   !Safety factor for the max weight
-   maximum_weight = maximum_weight*1.6d0
-
-   print*,'Maxmimum weight = ', maximum_weight
+   !Compute max weight over all processes
+   call maxallr1(maximum_weight,global_max_weight)
+   if(myrank().eq.0) print*,'global max weight = ', global_max_weight
+   ! !Safety factor
+   maximum_weight = global_max_weight*1.6d0
    my_events%max_weight = maximum_weight
-
+   call MPI_Barrier(mpi_comm_world,ierror)
+   
    !Now start to generate events
    do while(my_events%size.lt.gen_events)
       do j=1,nwlk 
          call setrn(irn_event(j))
          call mc_step(j_o(j),ien_o(j),q2_o(j),w_o(j),g_o(j),i_acc)
+         !print*,'process = ', myrank()
+         !print*,'j_o = ', j_o(j)  
+         !print*,'e_o = ', ien_o(j)  
+         !print*,'q2_o = ', q2_o(j)
+         !print*,'w_o = ', w_o(j)
          if(iv.ge.neq.and.mod(iv,nvoid).eq.0) then 
             call mc_calculate_xsec(Enu,j_o(j),ien_o(j),q2_o(j),w_o(j), &
                &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.true.)
@@ -236,16 +264,19 @@ subroutine mc_eval(Enu, xsec, xsec_err, my_events)
          call getrn(irn_event(j))
       enddo
 
-      call update_progress_bar(my_events%size, gen_events)
+      !call update_progress_bar(my_events%size, gen_events)
 
-      if(i_avg.gt.0) then
-         xsec=r_avg/dble(i_avg)
-         xsec_err=r_err/dble(i_avg)
-         xsec_err=sqrt((xsec_err-xsec**2)/dble(i_avg-1))
-      endif
+      !Don't update the xsec yet
+      !if(i_avg.gt.0) then
+      !   xsec=r_avg/dble(i_avg)
+      !   xsec_err=r_err/dble(i_avg)
+      !   xsec_err=sqrt((xsec_err-xsec**2)/dble(i_avg-1))
+      !endif
       iv = iv+1
    enddo
-
+   
+   call MPI_Barrier(mpi_comm_world,ierror)
+   
    return
 
 end subroutine
@@ -317,7 +348,8 @@ subroutine mc_calculate_xsec(Enu,j,ien,q2,w,g,i_avg,events,max_weight,r_avg,r_er
          print*,'This should never happen!'
       endif 
       max_weight = f 
-      print*,'max weight = ', max_weight
+      !events%max_weight = f
+      !print*,'max weight = ', max_weight
    endif
 
    !If we're generating events, unweight the event
@@ -341,6 +373,7 @@ end subroutine mc_calculate_xsec
 subroutine f_eval(j,ien,q2,w,pj,np1,enu_v,mlept,mqe,mY,ee0,kf,f,my_event_in)
    use event_module
    use mathtool
+   use mympi
    implicit none
    integer*4 :: j,ien,fg,ip,il
    real*8 :: emu,w,pmu,mlept,thetalept,cos_theta,sin_theta,probeP4(4),outlepP4(4)
@@ -412,6 +445,13 @@ subroutine f_eval(j,ien,q2,w,pj,np1,enu_v,mlept,mqe,mY,ee0,kf,f,my_event_in)
    innucP4 = (/ep, pj*sintheta_p*cos(phi_p), &
       &  pj*sintheta_p*sin(phi_p), pj*costheta_p/)
    outnucP4 = (/epf, innucP4(2), innucP4(3), innucP4(4) + qval/)
+
+
+   !print*,'process = ', myrank()
+   !print*,'probeP4 ', probeP4
+   !print*,'outlepP4 ' , outlepP4
+   !print*,'innucP4 = ', innucP4
+   !print*,'outnucP4 = ', outnucP4
 
    my_particles(1)%p4 = probeP4
    my_particles(2)%p4 = outlepP4

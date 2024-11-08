@@ -3,29 +3,32 @@ program ew_eventgen
    use mc_module
    use dirac_matrices
    use mathtool
-   !use mympi
+   use mympi
    
    implicit none
    real*8, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0
    real*8, parameter :: xmd=1236.0d0,xmn=938.0d0,xmpi=139.d0,xmmu=105.658357
-   real*8 :: progress
+   real*8 :: progress,ti,tf, xsec_acc
    integer*4 :: nw,nev,nZ,xA,i_fg,np0,np,ne,j,ilept,gen_events,num_events,nwlk
+   integer*4 :: gen_events_perproc, ierr
    real*8 :: wmax,enu,thetalept,xpf,Q2min,hw,sig,sig_err,xmlept,start,finish,total_sig,total_sig_err
-   integer*8, allocatable :: irn_int(:),irn_event(:)
-   integer*8 :: irn0,irn1,i
-   character*50 :: fname,intf_char,en_char  
+   integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
+   integer*8 :: ran1,ran2,i
+   character*50 :: fname,intf_char,en_char,temp_fname
    character*40 :: nk_fname
+   character*200 :: command
+
    type(event_container_t) :: saved_events
 
-   !call init0()
+   call init0()
 
-   !if (myrank().eq.0) then
+   if (myrank().eq.0) then
       read(5,*) gen_events
-      read(5,*) nev
       read(5,*) nwlk
       read(5,*) enu 
-      read(5,*) irn0
-      read(5,*) irn1
+      read(5,*) ran1
+      read(5,*) ran2
+      read(5,*) xsec_acc
       read(5,*) ilept
       read(5,*) xpf
       read(5,*) Q2min
@@ -38,42 +41,49 @@ program ew_eventgen
       en_char=adjustl(en_char)
       en_char=trim(en_char)  
 
-      !fname='test.out'
-      fname='C12_CC_'//trim(en_char)//'new.out'
+      fname='test.out'
+      !fname='C12_CC_'//trim(en_char)//'_parallel.out'
       fname=trim(fname)
-      open(unit=7, file=fname)
-   !endif
+      !open(unit=7, file=fname, status='replace')
+   endif
 
-   !call bcast(gen_events)
-   !call bcast(nev)
-   !call bcast(enu)
-   !call bcast(irn)
-   !call bcast(ilept)
-   !call bcast(xpf)
-   !call bcast(Q2min)
-   !call bcast(nZ,xA)
-   !call bcast(i_fg)
-   !call bcast(np0)
-   !call bcast(np)
-   !call bcast(ne)
+   write(temp_fname,'(A,I0,A)') 'process_', myrank(), '.txt'
+   open(unit=11+myrank(), file=temp_fname, status='replace')
 
-   !allocate(irn0(nwlk))
-   !do i=1,nwlk
-   !    irn0(i)=19+i
-   ! enddo
-   ! if (myrank().eq.0) then
-   !    write (6,'(''number of cpus ='',t50,i10)') nproc()
-   !    if (mod(nwlk,nproc()).ne.0) then
-   !       write(6,*)'Error: nwalk must me a multiple of nproc'
-   !       stop
-   !    endif
-   ! endif
-   ! nwlk=nwlk/nproc()
+   call bcast(gen_events)
+   call bcast(nwlk)
+   call bcast(enu)
+   call bcast(ran1)
+   call bcast(ran2)
+   call bcast(xsec_acc)
+   call bcast(ilept)
+   call bcast(xpf)
+   call bcast(Q2min)
+   call bcast(nZ)
+   call bcast(xA)
+   call bcast(i_fg)
+   call bcast(np0)
+   call bcast(np)
+   call bcast(ne)
+
+   ti=MPI_Wtime()
+
+   allocate(irn_int0(nwlk),irn_event0(nwlk))
+   do i=1,nwlk
+       irn_int0(i)=ran1 + i
+       irn_event0(i)=ran2 +i
+    enddo
+    if (myrank().eq.0) then
+       write (6,'(''number of cpus ='',t50,i10)') nproc()
+       if (mod(nwlk,nproc()).ne.0) then
+          write(6,*)'Error: nwalk must me a multiple of nproc'
+          stop
+       endif
+    endif
+    nwlk=nwlk/nproc()
     allocate(irn_int(nwlk),irn_event(nwlk))
-    do i=1,nwlk
-      irn_int(i)=irn0 + i
-      irn_event(i)=irn1 + i
-   enddo
+    irn_int(:)=irn_int0(myrank()*nwlk+1:myrank()*nwlk+nwlk)
+    irn_event(:)=irn_event0(myrank()*nwlk+1:myrank()*nwlk+nwlk)
 
    if(ilept.eq.0) then
       xmlept = 0.0d0
@@ -81,25 +91,58 @@ program ew_eventgen
       xmlept = xmmu
    endif
 
+   gen_events_perproc = gen_events/nproc()
 
    call dirac_matrices_in(xmn, 0.0d0, xmlept)
 
    !Initialize currents and spinors
-   call mc_init(gen_events,i_fg,irn_int,irn_event, &
+   call mc_init(gen_events_perproc,xsec_acc,i_fg,irn_int,irn_event, &
          &  nev,nwlk,xpf,xmlept,xA,nZ,np,np0,ne,Q2min)
    num_events = 0
 
-   write(6,*) 'Computing total cross section for Ev = ', enu, ' MeV'
+   if(myrank().eq.0) then
+      write(6,*) 'Computing total cross section for Ev = ', enu, ' MeV'
+   endif
+
+   !Compute the cross section and generate events
    call mc_eval(enu,sig,sig_err,saved_events)
-   call print_unweighted_events(saved_events,7)
-   num_events = saved_events%num_gen_events
 
-   write(6,*)'Total cross section = ', sig,' +/- ', sig_err
-   write(6,*)'Total number of events generated = ', num_events
+   !Print events to temp files
+   call print_unweighted_events(saved_events,11+myrank())
+   call MPI_Barrier(mpi_comm_world,ierr)
+
+   !Concatenate each of the temp files together into output
+   if(myrank().eq.0) then
+      command = 'cat'
+      do i = 0,nproc()-1
+         write(temp_fname,'(A,I0,A)') 'process_', i, '.txt'
+         command = trim(command) // ' ' // trim(temp_fname)
+      enddo
+      command = trim(command) // ' > ' // trim(fname) 
+      call execute_command_line(command)
+   endif
+
+   call MPI_Barrier(mpi_comm_world,ierr)
+
+   !Delete each of the temp files
+   if(myrank().eq.0) then
+      command = 'rm '
+      do i = 0,nproc()-1
+         write(temp_fname,'(A,I0,A)') 'process_', i, '.txt'
+         command = trim(command) // ' ' // trim(temp_fname)
+      enddo 
+      call execute_command_line(command)
+   endif
    
-   call cpu_time(finish)
+   tf=MPI_Wtime()
+   if (myrank().eq.0) then
+      write(6,*)'Elapsed time is',tf-ti
+   endif
+   call done()
+   
+   !call cpu_time(finish)
 
-   print '("Time = ",f8.2," seconds.")',finish-start
+   !print '("Time = ",f8.2," seconds.")',finish-start
 
    contains
       

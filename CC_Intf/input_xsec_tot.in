@@ -1,7 +1,7 @@
-400000               #number of events to generate
-100000			#number of samples per run
+200000               #number of events to generate
+500000			#number of samples per run
 1000. 				#enu
-25223				#irn
+15223				#irn
 1                   # ilept=1 muon, other electron
 221.0d0             # Fermi momentum
 100.0d0				#Q2min lim (MeV^2)
