@@ -230,8 +230,8 @@ subroutine det_Jpi(gep)
    real*8 :: fpik1,fpik2,gep,frho1,frho2,fact
    fpik1=(lpi**2-xmpi**2)/(lpi**2-k1(1)**2+sum(k1(2:4)**2))
    fpik2=(lpi**2-xmpi**2)/(lpi**2-k2(1)**2+sum(k2(2:4)**2))
-   frho1=0.0d0!1.0d0/(1.0d0-(k1(1)**2-sum(k1(2:4)**2))/xmrho**2)
-   frho2=0.0d0!1.0d0/(1.0d0-(k2(1)**2-sum(k2(2:4)**2))/xmrho**2)
+   frho1=1.0d0/(1.0d0-(k1(1)**2-sum(k1(2:4)**2))/xmrho**2)
+   frho2=1.0d0/(1.0d0-(k2(1)**2-sum(k2(2:4)**2))/xmrho**2)
    !...this factor is needed to fulfill current conservation, see A3 Dekker
    fact=(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)*(k2(1)**2-sum(k2(2:4)**2)-xmpi**2) &
         & *(1.0d0/(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)/(k2(1)**2-sum(k2(2:4)**2)-xmpi**2) &
@@ -318,21 +318,21 @@ subroutine det_JaJb_JcJd(cv3,ca5,np_del,pdel,pot_del)
       do j=1,4
          RSa(:,:,i,j)=matmul(pa_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
     &    2.0d0*pa(i)*pa(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pa(j)-gamma_mu(:,:,j)*pa(i))/3.0d0/xmd) &
-!    &    *(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
-   &     *(pa(1)**2-sum(pa(2:4)**2)-xmd**2)/((pa(1)**2-sum(pa(2:4)**2)-xmd**2)**2+xmd**2*ga**2)
+    &    *(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
+!   &     *(pa(1)**2-sum(pa(2:4)**2)-xmd**2)/((pa(1)**2-sum(pa(2:4)**2)-xmd**2)**2+xmd**2*ga**2)
 
          RSb(:,:,i,j)=matmul(pb_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
     &    2.0d0*pb(i)*pb(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pb(j)-gamma_mu(:,:,j)*pb(i))/3.0d0/xmd) &
-!    &    *(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
-   &     *(pb(1)**2-sum(pb(2:4)**2)-xmd**2)/((pb(1)**2-sum(pb(2:4)**2)-xmd**2)**2+xmd**2*gb**2)
+    &    *(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
+!   &     *(pb(1)**2-sum(pb(2:4)**2)-xmd**2)/((pb(1)**2-sum(pb(2:4)**2)-xmd**2)**2+xmd**2*gb**2)
          RSc(:,:,i,j)=matmul(pc_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
     &    2.0d0*pc(i)*pc(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pc(j)-gamma_mu(:,:,j)*pc(i))/3.0d0/xmd) &
-!    &    *(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
-   &     *(pc(1)**2-sum(pc(2:4)**2)-xmd**2)/((pc(1)**2-sum(pc(2:4)**2)-xmd**2)**2+xmd**2*gc**2)
+    &    *(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
+!   &     *(pc(1)**2-sum(pc(2:4)**2)-xmd**2)/((pc(1)**2-sum(pc(2:4)**2)-xmd**2)**2+xmd**2*gc**2)
          RSd(:,:,i,j)=matmul(pd_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
     &    2.0d0*pd(i)*pd(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pd(j)-gamma_mu(:,:,j)*pd(i))/3.0d0/xmd) &
-!    &    *(1.0d0/(pd(1)**2-sum(pd(2:4)**2)-xmd_d**2))
-   &     *(pd(1)**2-sum(pd(2:4)**2)-xmd**2)/((pd(1)**2-sum(pd(2:4)**2)-xmd**2)**2+xmd**2*gd**2)
+    &    *(1.0d0/(pd(1)**2-sum(pd(2:4)**2)-xmd_d**2))
+!   &     *(pd(1)**2-sum(pd(2:4)**2)-xmd**2)/((pd(1)**2-sum(pd(2:4)**2)-xmd**2)**2+xmd**2*gd**2)
          J_a_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
          J_b_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ca5*xmn*g_munu(j,i)*id4(:,:)
          J_c_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
