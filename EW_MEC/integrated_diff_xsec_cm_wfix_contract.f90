@@ -458,30 +458,33 @@ subroutine f_eval(j1,j2,w,pj1,pj2,np1,enu_v,mlept,f,my_event_in)
    !.....compute sigma_mott [ fm^2 --> mb ]
    sig0=(G_F*cb)**2/(2.0d0*pi)*pmu*emu/2.0d0/hbarc**2
 
-   qp(1)=enu_v+emu
-   qp(4)=2.0d0*kdotq/qval - qval
-   qp(3)=0.0d0 
-   qp(2)=2.0d0*sqrt(enu_v**2 - kdotq**2/qval**2)
+   !qp(1)=enu_v+emu
+   !qp(4)=2.0d0*kdotq/qval - qval
+   !qp(3)=0.0d0 
+   !qp(2)=2.0d0*sqrt(enu_v**2 - kdotq**2/qval**2)
 
-   q(1)=w 
-   q(2:3)=0.0d0 
-   q(4)=qval
+   !q(1)=w 
+   !q(2:3)=0.0d0 
+   !q(4)=qval
 
-   probeP4=(q+qp)/2.0d0 
-   outlepP4=(qp-q)/2.0d0
+   !probeP4=(q+qp)/2.0d0 
+   !outlepP4=(qp-q)/2.0d0
 
-   !probeP4(1) = enu_v
-   !probeP4(2) = enu_v*pmu*sin_theta/qval
-   !probeP4(3) = 0.0d0
-   !probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
+   !Changed so that neutrino is along z direction
+   probeP4(1) = enu_v
+   probeP4(2) = 0.0d0
+   probeP4(3) = 0.0d0
+   probeP4(4) = enu_v
 
-   !outlepP4(1) = emu 
-   !outlepP4(2) = enu_v*pmu*sin_theta/qval
-   !outlepP4(3) = 0.0d0
-   !outlepP4(4) = probeP4(4) - qval
+   outlepP4(1) = emu 
+   outlepP4(2) = pmu*sin_theta
+   outlepP4(3) = 0.0d0
+   outlepP4(4) = pmu*cos_theta
+
+   q=probeP4-outlepP4
 
    call int_eval(probeP4,outlepP4,phipp1,ctpp1,pj2,ctp2,phip2, &
-      &  pj1,ctp1,phip1,j1,j2,w,qval,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4)
+      &  pj1,ctp1,phip1,j1,j2,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4)
    r_now=r_now*2.0d0**3*(2.0d0*pi)**2!*ppmax removed because we are no longer samples pp1
 
    call contract(r_now,ampsq)
@@ -508,7 +511,7 @@ subroutine f_eval(j1,j2,w,pj1,pj2,np1,enu_v,mlept,f,my_event_in)
 end subroutine f_eval
 
 subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
-      &  phip1,ip1,ip2,w,qval,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4)
+      &  phip1,ip1,ip2,w,q_4,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4)
    use dirac_matrices         
    use mathtool
    implicit none
@@ -545,7 +548,8 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    p2_4(4)=p2*ctp2
 
    !......define constants and ff
-   q2=w**2-qval**2
+   !q2=w**2-qval**2
+   q2=q_4(1)**2 - sum(q_4(2:4)**2)
    gep=1.0d0/(1.0d0-q2/lsq)**2 
    !ffgnd= fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
@@ -554,8 +558,8 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    rho=xpf**3/(1.5d0*pi**2)
 
 
-   q_4(2:3)=0.0d0
-   q_4(4)=qval
+   !q_4(2:3)=0.0d0
+   !q_4(4)=qval
 
    !FSI things
    !tkin_pp1=pp1_4(1)-xmn
@@ -568,7 +572,7 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    !if(u_pp2.gt.0d0) u_pp2=0.0d0
 
    if(i_fg.eq.1) then
-      q_4(1)=w-40.0d0
+      q_4(1)=w!-40.0d0
    else
      ! q_4(1)=w-p1_4(1)-p2_4(1)-ep(ie1)+xmn-ep(ie2)+xmn+60.0d0!-u_pp1-u_pp2  
       q_4(1)=w+e_gs-e_bg &!-sum(p1_4(2:4)+p2_4(2:4))**2/2.0d0/(10.0d0*xmn) &
@@ -586,8 +590,12 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
 
    !Compute the total energy and momentum in lab frame
    E_tot = p1_4(1) + p2_4(1) + q_4(1)! + 40.0d0
+   !print*,'E1 = ', p1_4(1), ', E2 = ', p2_4(1), ', q0 = ', q_4(1)
    p_tot = p1_4(2:4) + p2_4(2:4) + q_4(2:4)
-   p_totmag = sqrt(sum(p_tot(1:3)**2))
+   !print*,'p1 = ', p1_4(2:4), ', p2 = ', p2_4(2:4), ', qvec = ', q_4(2:4)
+   !print*,'p_tot = ', p_tot(1),p_tot(2),p_tot(3)
+   p_totmag = sqrt(sum(p_tot(1:3)**2)) !p_tot runs from 1 to 3 (spatial coordinates)
+   !print*,'ptotmag = ', p_totmag
 
    !Check that we have enough energy to create the two final state particles
    if((E_tot**2 - p_totmag**2 - 4.0d0*xmn**2).lt.0.0d0) then 
@@ -602,6 +610,9 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    stpp1_cm = sqrt(1.0d0 - ctpp1_cm**2)
    !Use lorentz invariance to get pp1_cm(1) and momentum
    pp1_4cm(1) = 0.5d0*sqrt(E_tot**2 - p_totmag**2)
+   if(pp1_4cm(1).lt.xmn) then 
+      r_now = czero
+   endif
    pp1_cm_mag = sqrt(pp1_4cm(1)**2 - xmn**2)
    pp1_4cm(2) = pp1_cm_mag*stpp1_cm*cos(phipp1_cm)
    pp1_4cm(3) = pp1_cm_mag*stpp1_cm*sin(phipp1_cm)
@@ -620,7 +631,8 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
 
    !Lorentz transform
    pp1_4(2:4) = (gammacm*vcm_mag*pp1_4cm(1) + (gammacm - 1.0d0)*dot_product(pp1_4cm(2:4),uhatcm))*uhatcm(:) + pp1_4cm(2:4)
-   pp2_4(2:4) = (gammacm*vcm_mag*pp2_4cm(1) + (gammacm - 1.0d0)*dot_product(pp2_4cm(2:4),uhatcm))*uhatcm(:) + pp2_4cm(2:4)
+   pp2_4(2:4) = p_tot(1:3) - pp1_4(2:4)
+   !pp2_4(2:4) = (gammacm*vcm_mag*pp2_4cm(1) + (gammacm - 1.0d0)*dot_product(pp2_4cm(2:4),uhatcm))*uhatcm(:) + pp2_4cm(2:4)
    pp1_4(1) = sqrt(xmn**2 + sum(pp1_4(2:4)**2))
    pp2_4(1) = sqrt(xmn**2 + sum(pp2_4(2:4)**2))
 
@@ -659,11 +671,12 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    endif
 
    !......define constants and ff
-   q2=w**2-qval**2
-   gep=1.0d0/(1.0d0-q2/lsq)**2 
-   cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
-   ca5=1.20d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
-   rho=xpf**3/(1.5d0*pi**2)
+   !Not redifing q2 for form factors right now
+   !q2=w**2-qval**2
+   !gep=1.0d0/(1.0d0-q2/lsq)**2 
+   !cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
+   !ca5=1.20d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   !rho=xpf**3/(1.5d0*pi**2)
 
    had_dir=czero
    had_exc=czero
