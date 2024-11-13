@@ -9,6 +9,7 @@ module event_module
 
     type :: event_t 
         type(particle_t), allocatable :: particles(:)
+        real*8 :: cosr, phir
         real*8 :: weight=0
         logical :: unweighted=.FALSE.
     endtype
@@ -115,6 +116,7 @@ module event_module
             do i=1,n
                 write(fileunit,*) event%particles(i)%p4, event%particles(i)%pdg 
             enddo
+            write(fileunit,*) event%cosr, event%phir
         end subroutine print_event
 
         subroutine rotate_event(event)

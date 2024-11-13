@@ -426,7 +426,7 @@ subroutine f_eval(j1,j2,w,pj1,pj2,np1,enu_v,mlept,f,my_event_in)
    real*8 :: ctpp1,p2,ctp2,phip2,pj1,pj2,ctp1,phip1,phipp1,cosr,phir
    real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,qval,q2
    real*8 :: v_ll,v_t,sig0,sig,kdotq,q(4),qp(4)
-   complex*16 :: ampsq
+   complex*16 :: r_now(4,4),ampsq
    real*8 :: probeP4(4),outlepP4(4),nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
    type(event_t), intent(inout) :: my_event_in
    type(particle_t) :: my_particles(6)
@@ -457,8 +457,7 @@ subroutine f_eval(j1,j2,w,pj1,pj2,np1,enu_v,mlept,f,my_event_in)
    kdotq = mlept**2/2.0d0 + enu_v*w - (w**2 - qval**2)/2.0d0
 
    !.....compute sigma_mott [ fm^2 --> mb ]
-   !sig0=(G_F*cb)**2/(2.0d0*pi)*pmu*emu/2.0d0/hbarc**2
-   sig0=1.0d0
+   sig0=(G_F*cb)**2/(2.0d0*pi)*pmu*emu/2.0d0/hbarc**2
 
    !qp(1)=enu_v+emu
    !qp(4)=2.0d0*kdotq/qval - qval
@@ -486,10 +485,10 @@ subroutine f_eval(j1,j2,w,pj1,pj2,np1,enu_v,mlept,f,my_event_in)
    q=probeP4-outlepP4
 
    call int_eval(probeP4,outlepP4,phipp1,ctpp1,pj2,ctp2,phip2, &
-      &  pj1,ctp1,phip1,j1,j2,w,q,ampsq,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4,cosr,phir)
-   ampsq=ampsq*2.0d0**3*(2.0d0*pi)**2!*ppmax removed because we are no longer samples pp1
+      &  pj1,ctp1,phip1,j1,j2,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4,cosr,phir)
+   r_now=r_now*2.0d0**3*(2.0d0*pi)**2!*ppmax removed because we are no longer samples pp1
 
-   !call contract(r_now,ampsq)
+   call contract(r_now,ampsq)
 
    sig=sig0*(real(ampsq))*1.e15
    f=sig!*jac_c
@@ -508,7 +507,7 @@ subroutine f_eval(j1,j2,w,pj1,pj2,np1,enu_v,mlept,f,my_event_in)
    my_particles(6)%pdg = pdg2_out
 
    my_event_in%particles = my_particles
-   my_event_in%cosr = cosr 
+   my_event_in%cosr = cosr
    my_event_in%phir = phir
 
    return
@@ -532,7 +531,7 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    real*8 :: stpp1_cm,E_tot,p_tot(3),p_totmag,pp1_cm_mag,lorentz_jac
    complex*16 :: had_pipi(4,4),had_deldel(4,4), had_pidel(4,4)
    complex*16 :: had_pipi_exc(4,4),had_deldel_exc(4,4), had_pidel_exc(4,4)
-   complex*16 :: had_dir(4,4), had_exc(4,4), r_now
+   complex*16 :: had_dir(4,4), had_exc(4,4), r_now(4,4)
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2
    real*8 :: nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
@@ -628,9 +627,6 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    pp2_4cm(2:4) = -pp1_4cm(2:4)
    pp2_4cm(1) = pp1_4cm(1)
 
-   !print*,'pp1 cm = ', pp1_4cm
-   !print*,'pp2 cm = ', pp2_4cm
-
    !Ok now I have 4vecs in cm frame
    !I want to boost back to lab frame
    !velocity of cm frame
@@ -641,9 +637,7 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
 
    !Lorentz transform
    pp1_4(2:4) = (gammacm*vcm_mag*pp1_4cm(1) + (gammacm - 1.0d0)*dot_product(pp1_4cm(2:4),uhatcm))*uhatcm(:) + pp1_4cm(2:4)
-   !print*,'pp1_4 3vec = ', pp1_4(2:4)
    pp2_4(2:4) = p_tot(1:3) - pp1_4(2:4)
-   !print*,'pp2_4 3vec = ', pp2_4(2:4)
    !pp2_4(2:4) = (gammacm*vcm_mag*pp2_4cm(1) + (gammacm - 1.0d0)*dot_product(pp2_4cm(2:4),uhatcm))*uhatcm(:) + pp2_4cm(2:4)
    pp1_4(1) = sqrt(xmn**2 + sum(pp1_4(2:4)**2))
    pp2_4(1) = sqrt(xmn**2 + sum(pp2_4(2:4)**2))
@@ -694,28 +688,26 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    had_exc=czero
 
 !.......currents
-   !call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,k1_4,k2_4,1,isospin)      
-   !call define_spinors()
-   !call define_lept_spinors()
-   !call det_Jpi(gep)
-   !call det_JpiJpi(had_pipi)
-   !call det_JaJb_JcJd(cv3,ca5,np_del,pdel,pot_del)
-   !call det_JaJc_dir(had_deldel)
-   !call det_JpiJaJb(had_pidel)
+   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,k1_4,k2_4,1,isospin)      
+   call define_spinors()
+   call define_lept_spinors()
+   call det_Jpi(gep)
+   call det_JpiJpi(had_pipi)
+   call det_JaJb_JcJd(cv3,ca5,np_del,pdel,pot_del)
+   call det_JaJc_dir(had_deldel)
+   call det_JpiJaJb(had_pidel)
 
-   !had_dir = had_pipi + 2.0d0*(had_deldel + had_pidel)
+   had_dir = had_pipi + 2.0d0*(had_deldel + had_pidel)
    
-   !call current_init(kprobe_4,klept_4,p1_4,p2_4,pp2_4,pp1_4,q_4,k1e_4,k2e_4,2,isospin)
-   !call det_JaJb_JcJd(cv3,ca5,np_del,pdel,pot_del)
-   !call det_JaJc_exc(had_deldel_exc)
-   !call det_JpiJaJb_exc(had_pidel_exc)
+   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp2_4,pp1_4,q_4,k1e_4,k2e_4,2,isospin)
+   call det_JaJb_JcJd(cv3,ca5,np_del,pdel,pot_del)
+   call det_JaJc_exc(had_deldel_exc)
+   call det_JpiJaJb_exc(had_pidel_exc)
 
-   !had_exc = 2.0d0*(had_deldel_exc + had_pidel_exc)
+   had_exc = 2.0d0*(had_deldel_exc + had_pidel_exc)
 
-
-
-      r_now=np1*p1**2*p2**2/(2.0d0*pi)**8* &
-   &      lorentz_jac/rho*dble(xA)/2.0d0/2.0d0/p1_4(1)/p2_4(1)! /2.0d0 for the electromagnetic piece
+      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**8*(had_dir(:,:)-had_exc(:,:))* &
+   &      lorentz_jac/rho*dble(xA)/2.0d0/2.0d0! /2.0d0 for the electromagnetic piece
 
    return
 end subroutine   
