@@ -14,10 +14,10 @@ program ew_eventgen
    real*8 :: wmax,enu,thetalept,xpf,hw,sig,sig_err
    real*8 :: xmlept,start,finish,total_sig,total_sig_err
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
-   integer*8 :: ran1,ran2,i
+   integer*8 :: ran1,ran2,i,idx
    character*50 :: fname,intf_char,en_char,temp_fname
    character*40 :: nk_fname
-   character*200 :: command
+   character*200 :: command, sig_char, theta_str
 
    type(event_container_t) :: saved_events
 
@@ -41,7 +41,15 @@ program ew_eventgen
       en_char=adjustl(en_char)
       en_char=trim(en_char)  
 
-      fname='test_0_SF_1000_31p79_w350_contract.out'
+      !fname='test_FG_961_37p0_vz_pp.out'
+      write(theta_str, '(F0.2)') thetalept
+      idx = index(theta_str, '.')
+      theta_str(idx:idx) = 'p'
+      write(fname,'(A,I0,A,A,A,I0,A)') 'test_FG_', int(enu), '_', &
+         & trim(theta_str), '_', isospin,'_Delta.out'
+      if (myrank().eq.0) then
+         print*, 'Output file: ', fname
+      endif
       !fname='C12_CC_'//trim(en_char)//'_parallel.out'
       fname=trim(fname)
       !open(unit=7, file=fname, status='replace')
@@ -65,7 +73,6 @@ program ew_eventgen
    call bcast(i_fg)
 
    ti=MPI_Wtime()
-   print*,'theta lept read in = ', thetalept
    thetalept=thetalept/180.0d0*pi
 
    allocate(irn_int0(nwlk),irn_event0(nwlk))
@@ -93,7 +100,7 @@ program ew_eventgen
 
    gen_events_perproc = gen_events/nproc()
 
-   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,0.0d0)
+   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept)
 
    !Initialize currents and spinors
    call mc_init(gen_events_perproc,xsec_acc,i_fg,irn_int,irn_event, &
@@ -113,12 +120,17 @@ program ew_eventgen
 
    !Concatenate each of the temp files together into output
    if(myrank().eq.0) then
-      command = 'cat'
+      write(sig_char, *) sig
+      sig_char = trim(sig_char)
+      command = 'echo ' // sig_char // ' > ' // trim(fname)
+      call execute_command_line(command)
+
+      command = 'cat' 
       do i = 0,nproc()-1
          write(temp_fname,'(A,I0,A)') 'process_', i, '.out'
          command = trim(command) // ' ' // trim(temp_fname)
       enddo
-      command = trim(command) // ' > ' // trim(fname) 
+      command = trim(command) // ' >>' // trim(fname) 
       call execute_command_line(command)
    endif
 
