@@ -365,12 +365,12 @@ subroutine mc_calculate_xsec(Enu,j1,j2,w,g,i_avg,events,max_weight,r_avg,r_err,n
    !TODO remember where this 2pi came from! Azimuthal symmetry?
    f=f*(2.0d0*pi)/g
 
-   if(f.ge.max_weight) then
-      !We got a weight greater than the maximum weight we threw against
+   if(ABS(f).ge.max_weight) then
       if(eventgen.eqv..true.) then
-         print*,'This should never happen!'
+         print*,'w_i > w_max. This should never happen!'
       endif 
-      max_weight = f 
+      !Handle negative weights
+      max_weight = ABS(f) 
       !events%max_weight = f
       !print*,'max weight = ', max_weight
    endif
@@ -379,11 +379,13 @@ subroutine mc_calculate_xsec(Enu,j1,j2,w,g,i_avg,events,max_weight,r_avg,r_err,n
    if(eventgen.eqv..true.) then
       event%weight = f
       event%unweighted = .FALSE.
-      ratio = f/events%max_weight
+      ratio = ABS(f)/events%max_weight
       r = ran()
       !Only add unweighted events to the file
+      !added code to handle negative weights
       if(r.le.ratio) then
          event%unweighted=.TRUE.
+         event%weight=SIGN(events%max_weight,f)
          call events%add_event(event)
       endif
    endif

@@ -115,6 +115,7 @@ module event_module
             do i=1,n
                 write(fileunit,*) event%particles(i)%p4, event%particles(i)%pdg 
             enddo
+            write(fileunit,*) event%weight
         end subroutine print_event
 
         subroutine rotate_event(event)

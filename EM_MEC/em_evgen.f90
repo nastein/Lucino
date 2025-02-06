@@ -15,9 +15,9 @@ program ew_eventgen
    real*8 :: xmlept,start,finish,total_sig,total_sig_err
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
    integer*8 :: ran1,ran2,i,idx
-   character*50 :: fname,intf_char,en_char,temp_fname
+   character*50 :: intf_char,en_char,temp_fname
    character*40 :: nk_fname
-   character*200 :: command, sig_char, theta_str
+   character*200 :: command, sig_char, theta_str, fname
 
    type(event_container_t) :: saved_events
 
