@@ -1,15 +1,15 @@
-200000           #number of events to generate
+200000          #number of events to generate
 256  			#number of walkers
-1000.0    				#enu
-31.79                #thetalept
-843124				#irn0
-273193				#irn1 
-0					#isospin combination
-0.001d0              #total xsec accuracy
+961.0    				#enu
+37.0                #thetalept
+12341				#irn0
+92871				#irn1 
+1					#isospin combination
+0.01d0              #total xsec accuracy
 0                   # ilept=1 muon, other electron
 225.0d0             # Fermi momentum
 6  12              # nZ, nA
-0      				# 1 if Global Fermi Gas 
+1      				# 1 if Global Fermi Gas 
 40   80              # np0 ne
 400                  # np
 
