@@ -132,7 +132,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    
 end subroutine
 
-subroutine mc_eval(Enu, thetalept_in, xsec, xsec_err, my_events)
+subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
    use event_module
    use mathtool
    use dirac_matrices
@@ -253,6 +253,8 @@ subroutine mc_eval(Enu, thetalept_in, xsec, xsec_err, my_events)
       print*,'Cross section computed ', xsec_tot  
       print*,'Error = ', xsec_err_tot
    endif
+
+
 
    call MPI_Barrier(mpi_comm_world,ierror)
    call maxallr1(maximum_weight,global_max_weight)
@@ -451,17 +453,7 @@ subroutine f_eval(w,pj1,pj2,np1,enu_v,f,my_event_in)
    !outlepP4(3) = 0.0d0
    !outlepP4(4) = probeP4(4) - qval
 
-   probeP4(1) = enu_v
-   probeP4(2) = 0.0d0
-   probeP4(3) = 0.0d0
-   probeP4(4) = enu_v
-
-   outlepP4(1) = emu 
-   outlepP4(2) = pmu*sin_theta
-   outlepP4(3) = 0.0d0
-   outlepP4(4) = pmu*cos_theta
-
-     !Changed so that neutrino is along z direction
+   !Changed so that neutrino is along z direction
    probeP4(1) = enu_v
    probeP4(2) = 0.0d0
    probeP4(3) = 0.0d0
@@ -474,7 +466,6 @@ subroutine f_eval(w,pj1,pj2,np1,enu_v,f,my_event_in)
 
    q=probeP4-outlepP4
 
-
    !Evaluate the hadronic tensor
    call int_eval(probeP4,outlepP4,pj2,ctp2,phip2, &
       &  pj1,ctp1,phip1,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4)
@@ -484,7 +475,6 @@ subroutine f_eval(w,pj1,pj2,np1,enu_v,f,my_event_in)
 
    sig=sig0*(real(ampsq))*1.e9
    f=sig!*jac_c
-
 
    if(isospin.eq.0) then 
       if(ran().le.0.5) then

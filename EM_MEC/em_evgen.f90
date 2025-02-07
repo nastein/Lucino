@@ -8,14 +8,15 @@ program ew_eventgen
    implicit none
    real*8, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0
    real*8, parameter :: xmd=1236.0d0,xmn=938.0d0,xmpi=139.d0,xmmu=105.658357
-   real*8 :: progress,ti,tf, xsec_acc
+   real*8 :: progress,ti,tf, xsec_acc  
+   integer :: clocks(2), count_rate, seeds(2)
    integer*4 :: nw,nZ,xA,i_fg,j,ilept,gen_events,num_events,nwlk,isospin
    integer*4 :: gen_events_perproc, ierr
    real*8 :: wmax,enu,thetalept,xpf,hw,sig,sig_err
    real*8 :: xmlept,start,finish,total_sig,total_sig_err
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
    integer*8 :: ran1,ran2,i,idx
-   character*50 :: intf_char,en_char,temp_fname
+   character*50 :: intf_char,temp_fname
    character*40 :: nk_fname
    character*200 :: command, sig_char, theta_str, fname
 
@@ -24,12 +25,20 @@ program ew_eventgen
    call init0()
 
    if (myrank().eq.0) then
+      !Getting a random seed from my computer
+      call system_clock(count=clocks(1),count_rate=count_rate)
+      call sleep(1)
+      call system_clock(count=clocks(2),count_rate=count_rate)
+
+      seeds(1)=mod(clocks(1),100000)
+      seeds(2)=mod(clocks(2),100000)
+
+      print*,'Seed 1: ', seeds(1)
+      print*,'Seed 2: ', seeds(2)
       read(5,*) gen_events
       read(5,*) nwlk
       read(5,*) enu 
       read(5,*) thetalept
-      read(5,*) ran1
-      read(5,*) ran2
       read(5,*) isospin
       read(5,*) xsec_acc
       read(5,*) ilept
@@ -37,22 +46,16 @@ program ew_eventgen
       read(5,*) nZ,xA
       read(5,*) i_fg
 
-      write(en_char,'(i5)') int(enu)
-      en_char=adjustl(en_char)
-      en_char=trim(en_char)  
-
-      !fname='test_FG_961_37p0_vz_pp.out'
       write(theta_str, '(F0.2)') thetalept
       idx = index(theta_str, '.')
       theta_str(idx:idx) = 'p'
       write(fname,'(A,I0,A,A,A,I0,A)') 'test_FG_', int(enu), '_', &
-         & trim(theta_str), '_', isospin,'_Delta.out'
+         & trim(theta_str), '_', isospin,'.out'
       if (myrank().eq.0) then
          print*, 'Output file: ', fname
       endif
-      !fname='C12_CC_'//trim(en_char)//'_parallel.out'
+
       fname=trim(fname)
-      !open(unit=7, file=fname, status='replace')
    endif
 
    write(temp_fname,'(A,I0,A)') 'process_', myrank(), '.out'
@@ -62,8 +65,8 @@ program ew_eventgen
    call bcast(nwlk)
    call bcast(enu)
    call bcast(thetalept)
-   call bcast(ran1)
-   call bcast(ran2)
+   call bcast(seeds(1))
+   call bcast(seeds(2))
    call bcast(isospin)
    call bcast(xsec_acc)
    call bcast(ilept)
@@ -77,8 +80,8 @@ program ew_eventgen
 
    allocate(irn_int0(nwlk),irn_event0(nwlk))
    do i=1,nwlk
-       irn_int0(i)=ran1 + i
-       irn_event0(i)=ran2 +i
+       irn_int0(i)=seeds(1) + i
+       irn_event0(i)=seeds(2) +i
     enddo
     if (myrank().eq.0) then
        write (6,'(''number of cpus ='',t50,i10)') nproc()
@@ -116,47 +119,29 @@ program ew_eventgen
 
    !Print events to temp files
    call print_unweighted_events(saved_events,11+myrank())
+
+   call sleep(1)
+
+   close(11+myrank())
    call MPI_Barrier(mpi_comm_world,ierr)
 
    !Concatenate each of the temp files together into output
    if(myrank().eq.0) then
-      write(sig_char, *) sig
-      sig_char = trim(sig_char)
-      command = 'echo ' // sig_char // ' > ' // trim(fname)
-      call execute_command_line(command)
 
-      command = 'cat' 
-      do i = 0,nproc()-1
-         write(temp_fname,'(A,I0,A)') 'process_', i, '.out'
-         command = trim(command) // ' ' // trim(temp_fname)
-      enddo
-      command = trim(command) // ' >>' // trim(fname) 
+      open(unit=1, file=fname, status='replace', action='write')
+      write(1, '(F0.0)') sig
+      close(1)
+      command = 'cat'
+      command = trim(command) // ' process* >> ' // trim(fname) 
       call execute_command_line(command)
    endif
 
    call MPI_Barrier(mpi_comm_world,ierr)
-
-   ! !Delete each of the temp files
-   ! if(myrank().eq.0) then
-   !    command = 'rm '
-   !    do i = 0,nproc()-1
-   !       write(temp_fname,'(A,I0,A)') 'process_', i, '.txt'
-   !       command = trim(command) // ' ' // trim(temp_fname)
-   !    enddo 
-   !    call execute_command_line(command)
-   ! endif
    
    tf=MPI_Wtime()
    if (myrank().eq.0) then
       write(6,*)'Elapsed time is',tf-ti
    endif
-   call done()
-   
-   !call cpu_time(finish)
-
-   !print '("Time = ",f8.2," seconds.")',finish-start
-
-   contains
+   call done()  
       
-
 end program
