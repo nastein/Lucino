@@ -413,7 +413,7 @@ subroutine f_eval(w,pj1,pj2,np1,enu_v,f,my_event_in)
    real*8 :: p2,ctp2,phip2,pj1,pj2,ctp1,phip1
    real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,qval,q2
    real*8 :: v_ll,v_t,sig0,sig 
-   complex*16 :: r_now(4,4),ampsq
+   complex*16 :: r_now(4,4),lept_now(4,4),ampsq
    real*8 :: q(4),probeP4(4),outlepP4(4),nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
    type(event_t), intent(inout) :: my_event_in
    type(particle_t) :: my_particles(6)
@@ -474,12 +474,13 @@ subroutine f_eval(w,pj1,pj2,np1,enu_v,f,my_event_in)
       &  pj1,ctp1,phip1,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4)
    r_now=r_now*2.0d0**3*(2.0d0*pi)**2!*ppmax removed because we are no longer samples pp1
 
-   call contract(r_now,ampsq)
+   !Initializes lepton spinors
+   call lept_tens(lept_now)
+
+   call contract(r_now,lept_now,ampsq)
 
    sig=sig0*(real(ampsq))*1.e9
    f=sig!*jac_c
-
-   
 
    my_particles(1)%p4 = probeP4
    my_particles(1)%pdg = 11
@@ -494,13 +495,6 @@ subroutine f_eval(w,pj1,pj2,np1,enu_v,f,my_event_in)
    my_particles(6)%p4 = nuc2PP4
    my_particles(6)%pdg = pdg2_out
 
-   !print*,'probe: ', probeP4
-   !print*,'lepton: ', outlepP4
-   !print*,'nuc1: ', nuc1P4
-   !print*,'nuc2: ', nuc2P4
-   !print*,'nuc1p: ', nuc1PP4
-   !print*,'nuc2p: ', nuc2PP4
-
 
    my_event_in%particles = my_particles
 
@@ -512,6 +506,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    use dirac_matrices         
    use mathtool
    implicit none
+   integer*4 :: i,j,f1,f2,i1,i2,ti1,ti2,tf1,tf2
    real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6
    real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
    real*8 :: w,p2,ctp2,phip2,p1,ctp1,phip1,stp1,stp2
@@ -522,12 +517,11 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    real*8 :: pp1_4cm(4),pp2_4cm(4),phipp1_cm,ctpp1_cm
    real*8 :: vcm(3),vcm_mag,gammacm,uhatcm(3) 
    real*8 :: stpp1_cm,E_tot,p_tot(3),p_totmag,pp1_cm_mag,lorentz_jac
-   complex*16 :: had_pipi(4,4),had_deldel(4,4), had_pidel(4,4)
-   complex*16 :: had_pipi_exc(4,4),had_deldel_exc(4,4), had_pidel_exc(4,4)
-   complex*16 :: had_dir(4,4), had_exc(4,4), r_now(4,4)
+   complex*16 :: had(4,4), r_now(4,4)
+   complex*16 :: j_delta(2,2,2,2,2,2,2,2,4), j_pi(2,2,2,2,2,2,2,2,4)
+   complex*16 :: j_tot(2,2,2,2,2,2,2,2,4)
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2
-   real*8 :: dir(5),exc(5)
    real*8 :: nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
 
    !Get sin theta for initial state nucleons
@@ -621,8 +615,6 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
          pdg2_in = 2112
          pdg1_out = 2212
          pdg2_out = 2112
-         it1=up 
-         it2=down
       else
          pdg1_in = 2112
          pdg2_in = 2212
@@ -649,13 +641,6 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
 
    !Now I'm integrating over only 2 angles so my dOmega = 4*pi
 
-!Now these are defined in the currents code
-!...define pion momenta
-!   k1_4(:)=pp1_4(:)-p1_4(:)
-!   k2_4(:)=q_4(:)-k1_4(:)
-!   k1e_4(:)=pp2_4(:)-p1_4(:)
-!   k2e_4(:)= q_4(:)-k1e_4(:)
-
    !Define energy transfer for currents
    !q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
    if(q_4(1).lt.0.0d0) then
@@ -663,6 +648,10 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
      return
    endif
 
+   nuc1P4 = p1_4
+   nuc1PP4 = pp1_4
+   nuc2P4 = p2_4 
+   nuc2PP4 = pp2_4
    !......define constants and ff
    !q2=w**2 - qval**2
    gep=1.0d0/(1.0d0-q2/lsq)**2 
@@ -670,45 +659,23 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    ca5=0.0d0
    rho=xpf**3/(1.5d0*pi**2)
 
-   k1_4(:)=pp1_4(:)-p1_4(:)
-   k2_4(:)=q_4(:)-k1_4(:)
-   k1e_4(:)=pp2_4(:)-p1_4(:)
-   k2e_4(:)=q_4(:)-k1e_4(:)
-
-   had_dir=czero
-   had_exc=czero
-
-   had_pipi=czero
-   had_deldel=czero
-   had_pidel=czero
-   had_deldel_exc=czero
-   had_pidel_exc=czero
-   had_pipi_exc=czero
+   had=czero
+   j_delta=czero
+   j_pi=czero
+   j_tot=czero
 
 !.......currents
-   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w &
-      &  ,k1_4,k2_4,1,isospin,it1,it2) 
-   call define_spinors()
-   call define_lept_spinors()
-   call det_Jpi(gep)
-   call det_JpiJpi(had_pipi)
-   !call det_JaJb_JcJd(e_gs,e_bg,cv3,ca5,np_del,pdel,pot_del)
-   !call det_JaJc_dir(had_deldel)
-   !call det_JpiJaJb(had_pidel)
+   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cv3,ca5,np_del,pdel,pot_del)
+   call define_lept_spinors() 
+   call JDelta(j_delta)
+   !call JPi(j_pi)
 
-   had_dir = had_pipi!2.0d0*had_deldel!had_pipi + 2.0d0*(had_deldel + had_pidel)
-   !had_dir = had_pipi
-   !had_dir=czero
-   !call current_init(kprobe_4,klept_4,p1_4,p2_4,pp2_4,pp1_4,q_4,w &
-      !&  ,k1e_4,k2e_4,2,isospin,it1,it2)
-   !call det_JaJb_JcJd(e_gs,e_bg,cv3,ca5,np_del,pdel,pot_del)
-   !call det_JaJc_exc(had_deldel_exc)
-   !call det_JpiJaJb_exc(had_pidel_exc)
 
-   !had_exc = 2.0d0*(had_deldel_exc)! + had_pidel_exc)
-   !print*,'for exchange: ', had_exc
+   j_tot = j_delta
 
-      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**8*(had_dir(:,:)-had_exc(:,:))* &
+   call SummedSquareMatrix(had,conjg(j_tot),j_tot)
+   
+      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**8*(had(:,:))* &
    &      lorentz_jac/rho*dble(xA)/2.0d0/2.0d0! /2.0d0 for the electromagnetic piece
 
    return
@@ -725,6 +692,35 @@ subroutine g_eval(pj1,pj2,gPkE,wmax,gnorm,g)
     
    return
 end subroutine g_eval
+
+subroutine SummedSquareMatrix(had, inJdag,inJ)
+   implicit none 
+   integer*4 :: i,j,f1,f2,i1,i2,ti1,ti2,tf1,tf2
+   complex*16 :: had(4,4),inJdag(2,2,2,2,2,2,2,2,4),inJ(2,2,2,2,2,2,2,2,4)
+   do i=1,4
+      do j=1,4
+         do ti1=1,2
+            do ti2=1,2
+               do tf1=1,2
+                  do tf2=1,2
+                     do i1=1,2
+                        do i2=1,2
+                           do f1=1,2
+                              do f2=1,2
+                                 had(i,j)=had(i,j) &
+                                 &   +inJdag(f2,f1,i2,i1,tf2,tf1,ti2,ti1,i) &
+                                 &   *inJ(f2,f1,i2,i1,tf2,tf1,ti2,ti1,j)
+                              enddo
+                           enddo
+                        enddo
+                     enddo
+                  enddo
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+end subroutine SummedSquareMatrix
 
 subroutine update_progress_bar(current_step, total_steps)
           integer*4, intent(in) :: current_step, total_steps
