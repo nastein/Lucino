@@ -300,17 +300,36 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w,nk,nk_norm)
    real*8,intent(in) :: nk(np,np),nk_norm
    integer*4,intent(out) :: j1(nwlk),j2(nwlk),i1(nwlk),i2(nwlk),i1p(nwlk),i2p(nwlk)
    real*8,intent(out) :: w(nwlk),g(nwlk)
+   logical :: charged_conserved(nwlk)
+
+   charged_conserved(:) = .FALSE.
    
    do i=1,nwlk
       call setrn(irn_int(i))
       do while(g(i).le.0.0d0)
          j1(i)=1+int(np*ran())
          j2(i)=1+int(np*ran())
-         i1(i)=int(2 * ran() + 1)
-         i2(i)=int(2 * ran() + 1)
-         i1p(i)=int(2 * ran() + 1)
-         i2p(i)=int(2 * ran() + 1)
+         !print*,'Going into isospin sample'
+         do while (charged_conserved(i).eqv..FALSE.)
+            !print*,'Charge conserved = ', charged_conserved(i)
+            i1(i)=int(2*ran() + 1)
+            i2(i)=int(2*ran() + 1)
+            i1p(i)=int(2*ran() + 1)
+            i2p(i)=int(2*ran() + 1)
 
+            !print*,'i1 = ', i1(i)  
+            !print*,'i2 = ', i2(i)
+            !print*,'i1p = ', i1p(i)
+            !print*,'i2p = ', i2p(i) 
+
+            if ((i1(i)+i2(i)).eq.(i1p(i)+i2p(i))) then 
+               !print*,'Charged is conserved for this sample!'
+               charged_conserved(i) = .TRUE.
+               !print*,'Charge conserved = ', charged_conserved(i)
+            endif
+         enddo
+
+         !print*,'Finished isospin sample'
          !q2(i)=q2min + (q2max-q2min)*ran()
          w(i)=wmax*ran()
          call g_eval(p(j1(i)),p(j2(i)),nk(j1(i),j2(i)), &
@@ -328,15 +347,32 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc,nk,nk_norm)
    integer*4,intent(inout) :: j1_o,j2_o,i1_o,i2_o,i1p_o,i2p_o
    real*8 :: q2_n,w_n,g_n
    real*8,intent(inout) :: w_o,g_o
+   logical :: charged_conserved
+
+   charged_conserved = .FALSE.
    !print*,'doing an mc step'
    j1_n=nint(j1_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
    j2_n=nint(j1_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
    if(j1_n.le.np.and.j1_n.ge.1.and.j2_n.le.np.and.j2_n.ge.1) then
       w_n=wmax*ran()
-      i1_n=int(2 * ran() + 1)
-      i2_n=int(2 * ran() + 1)
-      i1p_n=int(2 * ran() + 1)
-      i2p_n=int(2 * ran() + 1)
+      do while (charged_conserved.eqv..FALSE.)
+         !print*,'Charge conserved = ', charged_conserved(i)
+         i1_n=int(2*ran() + 1)
+         i2_n=int(2*ran() + 1)
+         i1p_n=int(2*ran() + 1)
+         i2p_n=int(2*ran() + 1)
+
+         !print*,'i1 = ', i1(i)  
+         !print*,'i2 = ', i2(i)
+         !print*,'i1p = ', i1p(i)
+         !print*,'i2p = ', i2p(i) 
+
+         if ((i1_n+i2_n).eq.(i1p_n+i2p_n)) then 
+            !print*,'Charged is conserved for this sample!'
+            charged_conserved = .TRUE.
+            !print*,'Charge conserved = ', charged_conserved(i)
+         endif
+      enddo
       call g_eval(p(j1_n),p(j2_n),nk(j1_n,j2_n), &
          &  wmax,nk_norm,g_n)
    else
@@ -669,7 +705,7 @@ subroutine g_eval(pj1,pj2,gPkE,wmax,gnorm,g)
    real*8 ::pj1,pj2,gPkE,wmax,g,gnorm
    g=(4.0d0*pi)**2*pj1**2*pj2**2*gPkE
    !g=g/q2max/wmax/norm
-   g=g/gnorm/wmax/16.0d0 !Dividing by 16 for the 16 different isospin combinations 
+   g=g/gnorm/wmax/6.0d0 !Dividing by 6 for the 6 different isospin combinations that satisfy charge conservation
    
     
    return
