@@ -1,4 +1,4 @@
-200000         #number of events to generate
+100000         #number of events to generate
 256  			#number of walkers
 961.0    				#enu
 37.0                #thetalept

@@ -50,7 +50,7 @@ program ew_eventgen
       idx = index(theta_str, '.')
       theta_str(idx:idx) = 'p'
       write(fname,'(A,I0,A,A,A,I0,A)') 'test_FG_', int(enu), '_', &
-         & trim(theta_str), '_', isospin,'.out'
+         & trim(theta_str), '_', isospin,'_jdelta_new_isospinsample.out'
       if (myrank().eq.0) then
          print*, 'Output file: ', fname
       endif
