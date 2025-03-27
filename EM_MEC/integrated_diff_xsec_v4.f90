@@ -118,20 +118,13 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    if(myrank().eq.0) write(6,*) 'norm tot =' , norm
 
 
-   !print*,'do we make it into the potential?'
-   !if(myrank().eq.0) then
-      open(10, file='rho_1.dat')
-      read(10,*) np_del
-      allocate(pdel(np_del),pot_del(np_del))
-      do i=1,np_del
-         read(10,*) pdel(i),pot_del(i)
-      enddo
-   !endif
+   open(10, file='rho_1.dat')
+   read(10,*) np_del
+   allocate(pdel(np_del),pot_del(np_del))
+   do i=1,np_del
+      read(10,*) pdel(i),pot_del(i)
+   enddo
 
-   !call bcast(pdel)
-   !call bcast(np_del)
-   !call bcast(pot_del)
-   !print*,'do we make it past the potential?'
    
 end subroutine
 
@@ -179,23 +172,9 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
       return
    endif
 
-   if(isospin.eq.1) then 
-      nk = dp1 
-      nk_norm = norm1
-      !print*,'PP and NN initial states'
-   else if(isospin.eq.0) then
-      nk = dp0
-      nk_norm = norm0
-      !print*,'NP and PN initial states'
-   else
-      nk = dp  
-      nk_norm = norm
-      !print*,'ALL initial states'
-   endif
-
    !Initialize integrator to a random start point
    !call mc_random_startpoint(g_o,j1_o,j2_o,q2_o,w_o)
-   call mc_random_startpoint(g_o,i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,nk,nk_norm)
+   call mc_random_startpoint(g_o,i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o)
 
    !Pick random start values for xsec and err (these don't matter)
    xsec = 10.0d0 
@@ -203,7 +182,7 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
    xsec_tot = 10.0d0 
    xsec_err_tot = 100.0d0
    iv=1
-   !print*,myrank(),' starting point = ', j1_o, j2_o
+
    call MPI_Barrier(mpi_comm_world,ierror)
 
    
@@ -212,12 +191,12 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
       do j=1,nwlk
          call setrn(irn_int(j))
          !call mc_step(j1_o(j),j2_o(j),q2_o(j),w_o(j),g_o(j),i_acc)
-         call mc_step(i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j),g_o(j),i_acc,nk,nk_norm)
+         call mc_step(i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j),g_o(j),i_acc)
          if(iv.ge.neq.and.mod(iv,nvoid).eq.0) then 
             !call mc_calculate_xsec(Enu,j1_o(j),j2_o(j),q2_o(j),w_o(j), &
             !   &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.false.)
             call mc_calculate_xsec(Enu,i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j), &
-               &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,nk,.false.)
+               &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.false.)
          endif
          call getrn(irn_int(j))
       enddo
@@ -271,12 +250,12 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
       do j=1,nwlk 
          call setrn(irn_event(j))
          !call mc_step(j1_o(j),j2_o(j),q2_o(j),w_o(j),g_o(j),i_acc)
-         call mc_step(i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j),g_o(j),i_acc,nk,nk_norm)
+         call mc_step(i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j),g_o(j),i_acc)
          if(iv.ge.neq.and.mod(iv,nvoid).eq.0) then 
             !call mc_calculate_xsec(Enu,j1_o(j),j2_o(j),q2_o(j),w_o(j), &
             !   &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.true.)
             call mc_calculate_xsec(Enu,i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j), &
-               &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,nk,.true.)
+               &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.true.)
          endif
          call getrn(irn_event(j))
       enddo
@@ -295,9 +274,10 @@ end subroutine
 
 !subroutine mc_random_startpoint(g,j1,j2,q2,w)
 !Here we pick a random starting point for our MCMC
-subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w,nk,nk_norm)
+subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
    integer*4 :: i
-   real*8,intent(in) :: nk(np,np),nk_norm
+   !real*8,intent(in) :: nk(np,np),nk_norm
+   real*8 :: nk(np,np), nk_norm
    integer*4,intent(out) :: j1(nwlk),j2(nwlk),i1(nwlk),i2(nwlk),i1p(nwlk),i2p(nwlk)
    real*8,intent(out) :: w(nwlk),g(nwlk)
    logical :: charged_conserved(nwlk)
@@ -309,27 +289,27 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w,nk,nk_norm)
       do while(g(i).le.0.0d0)
          j1(i)=1+int(np*ran())
          j2(i)=1+int(np*ran())
-         !print*,'Going into isospin sample'
+
          do while (charged_conserved(i).eqv..FALSE.)
-            !print*,'Charge conserved = ', charged_conserved(i)
+
             i1(i)=int(2*ran() + 1)
             i2(i)=int(2*ran() + 1)
             i1p(i)=int(2*ran() + 1)
             i2p(i)=int(2*ran() + 1)
 
-            !print*,'i1 = ', i1(i)  
-            !print*,'i2 = ', i2(i)
-            !print*,'i1p = ', i1p(i)
-            !print*,'i2p = ', i2p(i) 
-
             if ((i1(i)+i2(i)).eq.(i1p(i)+i2p(i))) then 
-               !print*,'Charged is conserved for this sample!'
                charged_conserved(i) = .TRUE.
-               !print*,'Charge conserved = ', charged_conserved(i)
             endif
          enddo
 
-         !print*,'Finished isospin sample'
+         if(mod(i1(i)+i2(i),2).eq.0) then 
+            nk = dp1
+            nk_norm = norm1
+         else
+            nk = dp0
+            nk_norm = norm0
+         endif
+
          !q2(i)=q2min + (q2max-q2min)*ran()
          w(i)=wmax*ran()
          call g_eval(p(j1(i)),p(j2(i)),nk(j1(i),j2(i)), &
@@ -340,9 +320,9 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w,nk,nk_norm)
 end subroutine mc_random_startpoint
 
 !Here we take a random MCMC step
-subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc,nk,nk_norm)
+subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc)
    integer*4 :: j1_n,j2_n,i1_n,i2_n,i1p_n,i2p_n
-   real*8,intent(in) :: nk(np,np),nk_norm
+   real*8 :: nk(np,np), nk_norm
    integer*4,intent(inout) :: i_acc
    integer*4,intent(inout) :: j1_o,j2_o,i1_o,i2_o,i1p_o,i2p_o
    real*8 :: q2_n,w_n,g_n
@@ -350,29 +330,31 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc,nk,nk_norm)
    logical :: charged_conserved
 
    charged_conserved = .FALSE.
-   !print*,'doing an mc step'
+
    j1_n=nint(j1_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
    j2_n=nint(j1_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
    if(j1_n.le.np.and.j1_n.ge.1.and.j2_n.le.np.and.j2_n.ge.1) then
       w_n=wmax*ran()
       do while (charged_conserved.eqv..FALSE.)
-         !print*,'Charge conserved = ', charged_conserved(i)
+
          i1_n=int(2*ran() + 1)
          i2_n=int(2*ran() + 1)
          i1p_n=int(2*ran() + 1)
          i2p_n=int(2*ran() + 1)
 
-         !print*,'i1 = ', i1(i)  
-         !print*,'i2 = ', i2(i)
-         !print*,'i1p = ', i1p(i)
-         !print*,'i2p = ', i2p(i) 
-
          if ((i1_n+i2_n).eq.(i1p_n+i2p_n)) then 
-            !print*,'Charged is conserved for this sample!'
             charged_conserved = .TRUE.
-            !print*,'Charge conserved = ', charged_conserved(i)
          endif
       enddo
+
+      if(mod(i1_n+i2_n,2).eq.0) then 
+         nk = dp1
+         nk_norm = norm1
+      else
+         nk = dp0
+         nk_norm = norm0
+      endif
+
       call g_eval(p(j1_n),p(j2_n),nk(j1_n,j2_n), &
          &  wmax,nk_norm,g_n)
    else
@@ -394,8 +376,8 @@ end subroutine mc_step
 
 !Here we compute the corresponding cross section and get the weight and add the event to the output
 !subroutine mc_calculate_xsec(Enu,j1,j2,q2,w,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
-subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight,r_avg,r_err,nk,eventgen)
-   real*8,intent(in) :: nk(np,np)
+subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
+   real*8 :: nk(np,np)
    type(event_container_t), intent(inout) :: events
    type(event_t) :: event 
    logical :: eventgen
@@ -410,6 +392,13 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight
 
    !call f_eval(q2,w,p(j1),p(j2),dp(j1,j2),&
    !   &  Enu,f,event)
+
+   if(mod(i1+i2,2).eq.0) then 
+      nk = dp1
+   else
+      nk = dp0
+   endif
+
    call f_eval(w,i1,i2,i1p,i2p,p(j1),p(j2),nk(j1,j2),&
       &  Enu,f,event)
 
@@ -422,8 +411,6 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight
       endif 
       !Handle negative weights
       max_weight = ABS(f) 
-      !events%max_weight = f
-      !print*,'max weight = ', max_weight
    endif
 
    !If we're generating events, unweight the event
@@ -433,7 +420,6 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight
       ratio = ABS(f)/events%max_weight
       r = ran()
       !Only add unweighted events to the file
-      !added code to handle negative weights
       if(r.le.ratio) then
          event%unweighted=.TRUE.
          event%weight=SIGN(events%max_weight,f)
@@ -682,15 +668,16 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    j_pi=czero
    j_tot=czero
 
-!.......currents
+   !Pass momenta and form factors to currents module
    call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cv3,ca5,np_del,pdel,pot_del)
    call define_lept_spinors() 
    call JDelta(j_delta)
    !call JPi(j_pi)
 
 
-   j_tot = j_delta
+   j_tot = j_delta + j_pi
 
+   !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
    
       r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**8*(had(:,:))* &

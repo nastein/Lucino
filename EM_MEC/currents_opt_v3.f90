@@ -318,22 +318,6 @@ subroutine det_JaJb_JcJd()
     pc(:)=p2(:)+q(:)
     pd(:)=pp2(:)-q(:)
 
-    !print*,'In det_JaJb_JcJd '
-
-    !print*,'p1 = ', p1
-    !print*,'p2 = ', p2  
-    !print*,'pp1 = ', pp1  
-    !print*,'pp2 = ', pp2
-    !print*,'pa = ', pa  
-    !print*,'pb = ', pb  
-    !print*,'pc = ', pc  
-    !print*,'pd = ', pd 
-    !print*,'q = ', q
-    !print*,'k1 = ', k1  
-    !print*,'k2 = ', k2
-    !print*,'pa = ', pa 
-    !print*,'q = ', q
-    !print*,'cv3 = ', cv3
     pa2=sum(pa(2:4)**2)
     pb2=sum(pb(2:4)**2)
     pc2=sum(pc(2:4)**2)
@@ -413,8 +397,6 @@ subroutine det_JaJb_JcJd()
 
       enddo
     enddo
-    !print*,'J_a_2 = ', J_a_2
-    !print*,'Rsa = ', RSa
 ! costruisco Jmua, Jmub
    do mu=1,4
       J_a(:,:,mu)=czero
@@ -435,7 +417,6 @@ subroutine det_JaJb_JcJd()
     J_b_mu=J_b*fpik2*fpindk2*sqrt(fpinn2)*fstar/xmpi**2/xmn
     J_c_mu=J_c*fpik1*fpindk1*sqrt(fpinn2)*fstar/xmpi**2/xmn
     J_d_mu=J_d*fpik1*fpindk1*sqrt(fpinn2)*fstar/xmpi**2/xmn
-   !print*,'j_a_mu = ', J_a_mu
  
 end subroutine
 
@@ -447,10 +428,6 @@ subroutine JDeltaFixed(jtot)
     complex*16 :: ja(2,2,2,2,4), jb(2,2,2,2,4)
     complex*16 :: jc(2,2,2,2,4), jd(2,2,2,2,4), jtot(2,2,2,2,2,2,2,2,4)
     complex*16 :: iso_a(2,2,2,2), iso_b(2,2,2,2), iso_c(2,2,2,2), iso_d(2,2,2,2)
-    !print*,'p1 = ', p1  
-    !print*,'p2 = ', p2  
-    !print*,'pp1 = ', pp1  
-    !print*,'pp2 = ', pp2
 
     iso_a = czero
     iso_b = czero
@@ -500,7 +477,6 @@ subroutine JDeltaFixed(jtot)
             enddo
         enddo
     enddo
-    !print*,'ja = ', ja
 
     do ti1=1,2
         do ti2=1,2
@@ -536,22 +512,15 @@ subroutine JDelta(janti)
     j2112=czero
     j2121=czero
 
-    !print*,'Starting'
-    !print*,'1212'
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JDeltaFixed(j1212)
 
-
-    !print*,'2112'
     call had_current_init(p2_,p1_,pp1_,pp2_)
     call JDeltaFixed(j2112)
 
-
-    !print*,'1221'
     call had_current_init(p1_,p2_,pp2_,pp1_)
     call JDeltaFixed(j1221)
 
-    !print*,'2121'
     call had_current_init(p2_,p1_,pp2_,pp1_)
     call JDeltaFixed(j2121)
 
@@ -637,7 +606,7 @@ subroutine JPiFixed(jtot)
             do tf1=1,2
                 do tf2=1,2
                     jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) = iso_a(tf2,tf1,ti2,ti1)&
-                        & * (js1(:,:,:,:,:) + js2(:,:,:,:,:) + jf(:,:,:,:,:))
+                        & *1.0d0!* (js1(:,:,:,:,:) + js2(:,:,:,:,:))!js1(:,:,:,:,:) + js2(:,:,:,:,:) + jf(:,:,:,:,:))
                 enddo
             enddo
         enddo
@@ -655,21 +624,21 @@ subroutine JPi(janti)
     complex*16 :: janti(2,2,2,2,2,2,2,2,4)
 
     janti=czero
-
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JPiFixed(j1212)
-
 
     !call had_current_init(p2_,p1_,pp1_,pp2_)
     !call JPiFixed(j2112)
 
-
     !call had_current_init(p1_,p2_,pp2_,pp1_)
     !call JPiFixed(j1221)
 
-
     !call had_current_init(p2_,p1_,pp2_,pp1_)
     !call JPiFixed(j2121)
+
+    j2112 = czero 
+    j1221 = czero
+    j2121 = czero
 
     do ti1=1,2
         do ti2=1,2
@@ -679,8 +648,8 @@ subroutine JPi(janti)
                         do i2=1,2
                             do f1=1,2
                                 do f2=1,2
-                                    janti(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) !& 
-                                    !&  - j1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) !& 
+                                    janti(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:)! & 
+                                    !&  - j1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
                                     !&  - j2112(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
                                     !&  + j2121(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
                                 enddo

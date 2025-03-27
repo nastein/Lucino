@@ -49,7 +49,7 @@ program ew_eventgen
       write(theta_str, '(F0.2)') thetalept
       idx = index(theta_str, '.')
       theta_str(idx:idx) = 'p'
-      write(fname,'(A,I0,A,A,A,I0,A)') 'test_FG_', int(enu), '_', &
+      write(fname,'(A,I0,A,A,A,I0,A)') 'test_SF_', int(enu), '_', &
          & trim(theta_str), '_', isospin,'_jdelta_new_isospinsample.out'
       if (myrank().eq.0) then
          print*, 'Output file: ', fname
@@ -58,6 +58,7 @@ program ew_eventgen
       fname=trim(fname)
    endif
 
+   !Temporary files for each processor
    write(temp_fname,'(A,I0,A)') 'process_', myrank(), '.out'
    open(unit=11+myrank(), file=temp_fname, status='replace')
 
@@ -78,6 +79,8 @@ program ew_eventgen
    ti=MPI_Wtime()
    thetalept=thetalept/180.0d0*pi
 
+   
+   !Do random seed allocation
    allocate(irn_int0(nwlk),irn_event0(nwlk))
    do i=1,nwlk
        irn_int0(i)=seeds(1) + i
@@ -90,6 +93,7 @@ program ew_eventgen
           stop
        endif
     endif
+
     nwlk=nwlk/nproc()
     allocate(irn_int(nwlk),irn_event(nwlk))
     irn_int(:)=irn_int0(myrank()*nwlk+1:myrank()*nwlk+nwlk)
@@ -101,11 +105,13 @@ program ew_eventgen
       xmlept = xmmu
    endif
 
+   !Number of events each processor should generate
    gen_events_perproc = gen_events/nproc()
 
+   !Initialize currents module
    call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept)
 
-   !Initialize currents and spinors
+   !Initialize spectral function and other necessary inputs
    call mc_init(gen_events_perproc,xsec_acc,i_fg,irn_int,irn_event, &
          &  nwlk,xpf,xmlept,xA,nZ,isospin)
    num_events = 0
