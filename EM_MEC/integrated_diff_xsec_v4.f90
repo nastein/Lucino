@@ -672,7 +672,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cv3,ca5,np_del,pdel,pot_del)
    call define_lept_spinors() 
    call JDelta(j_delta)
-   !call JPi(j_pi)
+   call JPi(j_pi)
 
 
    j_tot = j_delta + j_pi

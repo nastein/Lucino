@@ -241,7 +241,7 @@ subroutine had_current_init(p1_in,p2_in,pp1_in,pp2_in)
     pp1=pp1_in
     pp2=pp2_in
     k1=pp1-p1
-    k2=q-k1
+    k2=pp2-p2
 
     p1_sl=czero
     p2_sl=czero
@@ -261,12 +261,6 @@ subroutine had_current_init(p1_in,p2_in,pp1_in,pp2_in)
     
     Pi_k1(:,:)=matmul(gamma_mu(:,:,5),k1_sl(:,:))/(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)
     Pi_k2(:,:)=matmul(gamma_mu(:,:,5),k2_sl(:,:))/(k2(1)**2-sum(k2(2:4)**2)-xmpi**2)
-
-
-    !print*,'p1 = ', p1
-    !print*,'p2 = ', p2 
-    !print*,'pp1 = ', pp1  
-    !print*,'pp2 = ', pp2 
 
 end subroutine
 
@@ -355,8 +349,8 @@ subroutine det_JaJb_JcJd()
        pd_sl=pd_sl+g_munu(i,i)*gamma_mu(:,:,i)*pd(i)
     enddo
 
-! costruisco i primi due termini della corrente a 2 corpi corrispondenti ai diagrammi a,b,c e d questo e' un passaggio intermedio,
-! l'espressione finale di tali correnti e' data da j_a_mu, j_b_mu, j_c_mu, j_d_mu
+    ! costruisco i primi due termini della corrente a 2 corpi corrispondenti ai diagrammi a,b,c e d questo e' un passaggio intermedio,
+    ! l'espressione finale di tali correnti e' data da j_a_mu, j_b_mu, j_c_mu, j_d_mu
     do i=1,4
       j_a_1(:,:,i)=k2(i)*id4(:,:)
       j_b_2(:,:,i)=k2(i)*id4(:,:)
@@ -367,37 +361,37 @@ subroutine det_JaJb_JcJd()
          RSa(:,:,i,j)=matmul(pa_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
     &    2.0d0*pa(i)*pa(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pa(j)-gamma_mu(:,:,j)*pa(i))/3.0d0/xmd) &
     &    *(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
-!   &     *(pa(1)**2-sum(pa(2:4)**2)-xmd**2)/((pa(1)**2-sum(pa(2:4)**2)-xmd**2)**2+xmd**2*ga**2)
+    !   &     *(pa(1)**2-sum(pa(2:4)**2)-xmd**2)/((pa(1)**2-sum(pa(2:4)**2)-xmd**2)**2+xmd**2*ga**2)
 
          RSb(:,:,i,j)=matmul(pb_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
     &    2.0d0*pb(i)*pb(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pb(j)-gamma_mu(:,:,j)*pb(i))/3.0d0/xmd) &
     &    *(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
-!   &     *(pb(1)**2-sum(pb(2:4)**2)-xmd**2)/((pb(1)**2-sum(pb(2:4)**2)-xmd**2)**2+xmd**2*gb**2)
+    !   &     *(pb(1)**2-sum(pb(2:4)**2)-xmd**2)/((pb(1)**2-sum(pb(2:4)**2)-xmd**2)**2+xmd**2*gb**2)
          RSc(:,:,i,j)=matmul(pc_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
     &    2.0d0*pc(i)*pc(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pc(j)-gamma_mu(:,:,j)*pc(i))/3.0d0/xmd) &
     &    *(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
-!   &     *(pc(1)**2-sum(pc(2:4)**2)-xmd**2)/((pc(1)**2-sum(pc(2:4)**2)-xmd**2)**2+xmd**2*gc**2)
+    !   &     *(pc(1)**2-sum(pc(2:4)**2)-xmd**2)/((pc(1)**2-sum(pc(2:4)**2)-xmd**2)**2+xmd**2*gc**2)
          RSd(:,:,i,j)=matmul(pd_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
     &    2.0d0*pd(i)*pd(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pd(j)-gamma_mu(:,:,j)*pd(i))/3.0d0/xmd) &
     &    *(1.0d0/(pd(1)**2-sum(pd(2:4)**2)-xmd_d**2))
-!   &     *(pd(1)**2-sum(pd(2:4)**2)-xmd**2)/((pd(1)**2-sum(pd(2:4)**2)-xmd**2)**2+xmd**2*gd**2)
+    !   &     *(pd(1)**2-sum(pd(2:4)**2)-xmd**2)/((pd(1)**2-sum(pd(2:4)**2)-xmd**2)**2+xmd**2*gd**2)
          J_a_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
          J_b_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ca5*xmn*g_munu(j,i)*id4(:,:)
          J_c_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
          J_d_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ca5*xmn*g_munu(j,i)*id4(:,:)
-!         J_a_2(:,:,i,j)=0.5d0*cv3*matmul(q(j)*gamma_mu(:,:,i)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),gamma_mu(:,:,i))), &
-!    &                   gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
-!         J_b_1(:,:,i,j)=0.5d0*cv3*matmul(gamma_mu(:,:,5),q(i)*gamma_mu(:,:,j)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),& 
-!    &                   gamma_mu(:,:,i))))+ca5*xmn*g_munu(j,i)*id4(:,:)
-!         J_c_2(:,:,i,j)=0.5d0*cv3*matmul(q(j)*gamma_mu(:,:,i)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),gamma_mu(:,:,i))), &
-!    &                   gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
-!         J_d_1(:,:,i,j)=0.5d0*cv3*matmul(gamma_mu(:,:,5),q(i)*gamma_mu(:,:,j)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),& 
-!    &                   gamma_mu(:,:,i))))+ca5*xmn*g_munu(j,i)*id4(:,:)
+    !         J_a_2(:,:,i,j)=0.5d0*cv3*matmul(q(j)*gamma_mu(:,:,i)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),gamma_mu(:,:,i))), &
+    !    &                   gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
+    !         J_b_1(:,:,i,j)=0.5d0*cv3*matmul(gamma_mu(:,:,5),q(i)*gamma_mu(:,:,j)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),& 
+    !    &                   gamma_mu(:,:,i))))+ca5*xmn*g_munu(j,i)*id4(:,:)
+    !         J_c_2(:,:,i,j)=0.5d0*cv3*matmul(q(j)*gamma_mu(:,:,i)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),gamma_mu(:,:,i))), &
+    !    &                   gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
+    !         J_d_1(:,:,i,j)=0.5d0*cv3*matmul(gamma_mu(:,:,5),q(i)*gamma_mu(:,:,j)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),& 
+    !    &                   gamma_mu(:,:,i))))+ca5*xmn*g_munu(j,i)*id4(:,:)
 
 
       enddo
     enddo
-! costruisco Jmua, Jmub
+    ! costruisco Jmua, Jmub
    do mu=1,4
       J_a(:,:,mu)=czero
       J_b(:,:,mu)=czero
@@ -591,7 +585,7 @@ subroutine JPiFixed(jtot)
         do i2=1,2
             do f1=1,2
                 do f2=1,2
-                    iso_a(f2,f1,i2,i1)=Ivz(iso(i1,:),iso(i2,:),iso(f1,:),iso(f2,:))
+                    iso_a(f2,f1,i2,i1)=-Ivz(iso(i1,:),iso(i2,:),iso(f1,:),iso(f2,:))
                     do i=1,4
                         js1(f2,f1,i2,i1,i)=j_2(f2,i2)*js1_sub(f1,i1,i)
                         js2(f2,f1,i2,i1,i)=j_1(f1,i1)*js2_sub(f2,i2,i)   
@@ -606,7 +600,7 @@ subroutine JPiFixed(jtot)
             do tf1=1,2
                 do tf2=1,2
                     jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) = iso_a(tf2,tf1,ti2,ti1)&
-                        & *1.0d0!* (js1(:,:,:,:,:) + js2(:,:,:,:,:))!js1(:,:,:,:,:) + js2(:,:,:,:,:) + jf(:,:,:,:,:))
+                        & * (js1(:,:,:,:,:) + js2(:,:,:,:,:) + jf(:,:,:,:,:))
                 enddo
             enddo
         enddo
@@ -627,18 +621,18 @@ subroutine JPi(janti)
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JPiFixed(j1212)
 
-    !call had_current_init(p2_,p1_,pp1_,pp2_)
-    !call JPiFixed(j2112)
+    call had_current_init(p2_,p1_,pp1_,pp2_)
+    call JPiFixed(j2112)
 
-    !call had_current_init(p1_,p2_,pp2_,pp1_)
-    !call JPiFixed(j1221)
+    call had_current_init(p1_,p2_,pp2_,pp1_)
+    call JPiFixed(j1221)
 
-    !call had_current_init(p2_,p1_,pp2_,pp1_)
-    !call JPiFixed(j2121)
+    call had_current_init(p2_,p1_,pp2_,pp1_)
+    call JPiFixed(j2121)
 
-    j2112 = czero 
-    j1221 = czero
-    j2121 = czero
+    !j2112 = czero 
+    !j1221 = czero
+    !j2121 = czero
 
     do ti1=1,2
         do ti2=1,2
@@ -648,10 +642,10 @@ subroutine JPi(janti)
                         do i2=1,2
                             do f1=1,2
                                 do f2=1,2
-                                    janti(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:)! & 
-                                    !&  - j1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
-                                    !&  - j2112(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
-                                    !&  + j2121(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
+                                    janti(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - j1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
+                                    &  - j2112(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
+                                    &  + j2121(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
                                 enddo
                             enddo
                         enddo
