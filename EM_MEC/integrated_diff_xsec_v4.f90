@@ -478,26 +478,26 @@ subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    sig0=10.0d0* hbarc**2 * alpha**2 * (emu*pmu) /q2**2 
 
    !Fix lepton kinematics (choose x-z plane and q along z)
-   probeP4(1) = enu_v
-   probeP4(2) = enu_v*pmu*sin_theta/qval
-   probeP4(3) = 0.0d0
-   probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
-
-   outlepP4(1) = emu 
-   outlepP4(2) = enu_v*pmu*sin_theta/qval
-   outlepP4(3) = 0.0d0
-   outlepP4(4) = probeP4(4) - qval
-
-   !Changed so that neutrino is along z direction
    !probeP4(1) = enu_v
-   !probeP4(2) = 0.0d0
+   !probeP4(2) = enu_v*pmu*sin_theta/qval
    !probeP4(3) = 0.0d0
-   !probeP4(4) = enu_v
+   !probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
 
    !outlepP4(1) = emu 
-   !outlepP4(2) = pmu*sin_theta
+   !outlepP4(2) = enu_v*pmu*sin_theta/qval
    !outlepP4(3) = 0.0d0
-   !outlepP4(4) = pmu*cos_theta
+   !outlepP4(4) = probeP4(4) - qval
+
+   !Changed so that neutrino is along z direction
+   probeP4(1) = enu_v
+   probeP4(2) = 0.0d0
+   probeP4(3) = 0.0d0
+   probeP4(4) = enu_v
+
+   outlepP4(1) = emu 
+   outlepP4(2) = pmu*sin_theta
+   outlepP4(3) = 0.0d0
+   outlepP4(4) = pmu*cos_theta
 
    q=probeP4-outlepP4
 
@@ -576,7 +576,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    !q_4(4)=qval
    q2=q_4(1)**2 - sum(q_4(2:4)**2)
    if(i_fg.eq.1) then
-      q_4(1)=w!-40.0d0
+      q_4(1)=w-40.0d0
    else
      ! q_4(1)=w-p1_4(1)-p2_4(1)-ep(ie1)+xmn-ep(ie2)+xmn+60.0d0!-u_pp1-u_pp2  
       q_4(1)=w+e_gs-e_bg &!-sum(p1_4(2:4)+p2_4(2:4))**2/2.0d0/(10.0d0*xmn) &

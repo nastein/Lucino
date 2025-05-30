@@ -113,7 +113,8 @@ module event_module
             n = size(event%particles)
 
             do i=1,n
-                write(fileunit,*) event%particles(i)%p4, event%particles(i)%pdg 
+                !write(fileunit,*) event%particles(i)%p4, event%particles(i)%pdg 
+                write(fileunit, '(4(F0.3,1X),I0)') event%particles(i)%p4, event%particles(i)%pdg 
             enddo
             write(fileunit,*) event%weight
         end subroutine print_event

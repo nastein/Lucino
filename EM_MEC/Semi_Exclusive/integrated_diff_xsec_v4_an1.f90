@@ -10,12 +10,12 @@ module mc_module
    integer*4, private, parameter :: nev=100000,neq=10000,nvoid=10,np0=40
    real*8, private, save ::  xpf,xpmax
    real*8, private, save :: xsec_acc
-   real*8, private, save:: norm,norm0,norm1
+   real*8, private, save:: norm,norm0,norm1,normi
    real*8, private, save:: mlept
    real*8, private, save:: wmax,thetalept,thetaprot,w
    real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0,ppmax=1.0d0*1.e3
    real*8, private, parameter :: alpha=1.0d0/137.0d0
-   real*8, private, allocatable :: pv(:),p(:),dp(:,:),ep(:),dp1(:,:),dp0(:,:)
+   real*8, private, allocatable :: pv(:),p(:),dp(:,:),ep(:),dp1(:,:),dp0(:,:),dpi(:,:,:)
    real*8, private, allocatable :: kin(:),pot(:),pdel(:),pot_del(:)
    real*8, parameter :: mp=938.272d0,mn=939.565d0, &
       &  mu=931.494061d0,mpi=139.5d0
@@ -56,10 +56,12 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    if(i_fg.ne.1) then
       open(unit=8,file='n2b_c12_new_fmt.dat',status='unknown',form='formatted')
       read(8,*) np
-      allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
+      allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np),dpi(np,np,2))
       do i=1,np
          do j=1,np
            read(8,*) p(i),p(j),dp(i,j),dp1(i,j),dp0(i,j)
+           dpi(i,j,1) = dp1(i,j)
+           dpi(i,j,2) = dp0(i,j)
            !print*,p(i),p(j),dp(i,j),dp1(i,j),dp0(i,j)
          enddo  
       enddo
@@ -69,12 +71,14 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
       dp=dp/hbarc**6
       dp1=dp1/hbarc**6
       dp0=dp0/hbarc**6
+      dpi=dpi/hbarc**6
       dp=dp/(2.0d0*pi)**6
       dp1=dp1/(2.0d0*pi)**6
       dp0=dp0/(2.0d0*pi)**6
+      dpi=dpi/(2.0d0*pi)**6
    else 
       np = 2*np0
-      allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
+      allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np),dpi(np,np,2))
       hp=xpf/dble(np)
       do i=1,np
          p(i)=dble(i-0.5d0)*hp 
@@ -82,6 +86,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
             dp(i,j)=1.0d0
             dp1(i,j)=1.0d0
             dp0(i,j)=1.0d0
+            dpi(i,j,:)=1.0d0
          enddo
       enddo
    endif
@@ -90,6 +95,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    norm=0.0d0
    norm1=0.0d0 
    norm0=0.0d0 
+   normi=0.0d0
    
    do i=1,np
          do j=1,np
@@ -102,6 +108,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    dp=dp/norm*(4.0d0*pi*xpf**3/3.0d0)**2
    dp1=dp1/norm1*(4.0d0*pi*xpf**3/3.0d0)**2
    dp0=dp0/norm0*(4.0d0*pi*xpf**3/3.0d0)**2
+   dpi=dpi/norm*(4.0d0*pi*xpf**3/3.0d0)**2 !Divide the combined SF by the total norm
 
    norm=0.0d0
    norm1=0.0d0 
@@ -113,6 +120,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
          norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
       enddo
    enddo  
+   normi=norm
    if(myrank().eq.0) write(6,*) 'norm tot =' , norm
 
 
@@ -301,13 +309,20 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2)
             endif
          enddo
 
-         if(mod(i1(i)+i2(i),2).eq.0) then 
-            nk = dp1
-            nk_norm = norm1
-         else
-            nk = dp0
-            nk_norm = norm0
+         if(i_fg.ne.1) then 
+            if(mod(i1(i)+i2(i),2).eq.0) then 
+               nk = dpi(:,:,1)
+               nk_norm = normi
+            else
+               nk = dpi(:,:,2)
+               nk_norm = normi
+            endif
+
+         else 
+            nk = dp
+            nk_norm = norm
          endif
+         
 
          !q2(i)=q2min + (q2max-q2min)*ran()
          call g_eval(p(j1(i)),p(j2(i)),nk(j1(i),j2(i)), &
@@ -345,12 +360,18 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,g_o,i_acc)
          endif
       enddo
 
-      if(mod(i1_n+i2_n,2).eq.0) then 
-         nk = dp1
-         nk_norm = norm1
-      else
-         nk = dp0
-         nk_norm = norm0
+      if(i_fg.ne.1) then 
+         if(mod(i1_n+i2_n,2).eq.0) then 
+            nk = dpi(:,:,1)
+            nk_norm = normi
+         else
+            nk = dpi(:,:,2)
+            nk_norm = normi
+         endif
+
+      else 
+         nk = dp
+         nk_norm = norm
       endif
 
       call g_eval(p(j1_n),p(j2_n),nk(j1_n,j2_n), &
@@ -389,10 +410,15 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,g,i_avg,events,max_weight,r
    !call f_eval(q2,w,p(j1),p(j2),dp(j1,j2),&
    !   &  Enu,f,event)
 
-   if(mod(i1+i2,2).eq.0) then 
-      nk = dp1
-   else
-      nk = dp0
+   if(i_fg.ne.1) then 
+      if(mod(i1+i2,2).eq.0) then 
+         nk = dpi(:,:,1)
+      else
+         nk = dpi(:,:,2)
+      endif
+
+   else 
+      nk = dp
    endif
 
    call f_eval(i1,i2,i1p,i2p,p(j1),p(j2),nk(j1,j2),&
@@ -482,7 +508,7 @@ subroutine f_eval(i1,i2,i1p,i2p,pj1,pj2,np1,elepi,f,my_event_in)
    q=probeP4-outlepP4
 
    !Evaluate the hadronic tensor
-   call int_eval(probeP4,outlepP4,pi,cos(thetaprot),pj2,ctp2,phip2, &
+   call int_eval(probeP4,outlepP4,0.0d0,cos(thetaprot),pj2,ctp2,phip2, &
       &  pj1,ctp1,phip1,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
       &  i1,i2,i1p,i2p)
    !Removed a factor of 4pi because cospp1 and phipp1 are fixed now
@@ -659,7 +685,7 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    pp2_4(1)=sqrt(sum(pp2_4(2:4)**2)+xmn**2)
 
    !Define energy transfer for currents
-   !q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
+   q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
    if(q_4(1).lt.0.0d0) then
      r_now=czero
      return
