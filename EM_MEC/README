@@ -1,6 +1,9 @@
 This folder computes the double differential cross section for MEC events at a fixed beam energy and scattering angle
 so dsig/dOmega is computed
 
+The code can be compiled using 'source compile_em.sh'
+It can then be run using mpirun -np 8 ./a.out < input_xsec_tot.in
+
 There are two version of the code the default and the ones ending in _an1. The difference is in how the energy conserving delta is solved
 The default is solved going to the CM frame, the _an1 is solved via a quadratic equation
 

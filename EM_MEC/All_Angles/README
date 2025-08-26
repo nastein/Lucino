@@ -1,5 +1,8 @@
 This folder computes the total cross section for MEC events at a fixed beam energy
 
+The code can be compiled using 'source compile_em.sh'
+It can then be run using mpirun -np 8 ./a.out < input_xsec_tot.in
+
 input_tot_xsec.in is the input card which controls the number of events, beam energy, CC or EM events
 as well as whether you want to use a SF or FG, and things about the Delta propagator
 
