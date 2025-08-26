@@ -7,6 +7,9 @@ The default is solved going to the CM frame, the _an1 is solved via a quadratic 
 input_tot_xsec.in is the input card which controls the number of events, beam energy, scattering angle, CC or EM events
 as well as whether you want to use a SF or FG, and things about the Delta propagator
 
+The directory All_Angles contains code to integrate over the the angles of the outgoing lepton (equivalently q2)
+The directory All_angles/FluxFolded contains code to integrate further over a given neutrino flux
+
 The output file is a list of events, the first line is the total cross section, 
 the number of trial events(useful for computing unweighting efficiency), and the number of generated events 
 Every event contains the 4 vectors of all the particles involved in order:
