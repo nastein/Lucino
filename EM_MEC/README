@@ -1,6 +1,9 @@
 This folder computes the double differential cross section for MEC events at a fixed beam energy and scattering angle
 so dsig/dOmega is computed
 
+There are two version of the code the default and the ones ending in _an1. The difference is in how the energy conserving delta is solved
+The default is solved going to the CM frame, the _an1 is solved via a quadratic equation
+
 input_tot_xsec.in is the input card which controls the number of events, beam energy, scattering angle, CC or EM events
 as well as whether you want to use a SF or FG, and things about the Delta propagator
 

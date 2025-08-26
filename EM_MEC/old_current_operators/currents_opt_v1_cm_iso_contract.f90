@@ -204,7 +204,7 @@ subroutine define_lept_spinors()
     return
 end subroutine
 
-subroutine current_init(lepi_in,lepf_in,p1_in,p2_in,pp1_in,pp2_in,q_in,w_in,k1_in,k2_in,i_fl_in,iso_in)
+subroutine current_init(lepi_in,lepf_in,p1_in,p2_in,pp1_in,pp2_in,q_in,w_in,i_fl_in,iso_in)
     implicit none
     integer*4 :: i,i_fl_in,iso_in
     real*8 :: p1_in(4),p2_in(4),pp1_in(4),pp2_in(4),q_in(4),k1_in(4),k2_in(4),w_in
@@ -216,11 +216,14 @@ subroutine current_init(lepi_in,lepf_in,p1_in,p2_in,pp1_in,pp2_in,q_in,w_in,k1_i
     p2=p2_in
     pp1=pp1_in
     pp2=pp2_in
-    k1=k1_in
-    k2=k2_in
+    !k1=k1_in
+    !k2=k2_in
     q=q_in
     w=w_in
 !
+
+    k1=pp1-p1
+    k2=q-k1
     !No care for isospin of pair right now
     pair_isospin=iso_in
 
@@ -1031,129 +1034,5 @@ subroutine delta_se(pd2,width,pot)
    return
 end subroutine
 
-function Ivz(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: Ivz
-
-    Ivz = ci*(me(1,it1,itp1)*me(2,it2,itp2) - me(2,it1,itp1)*me(1,it2,itp2))
-
-    return
-end function Ivz
-
-function IDeltaA_EM(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaA_EM, c
-
-    c = me(3,it2,itp2)*iden(it1,itp1)
-
-    IDeltaA_EM = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.)
-
-    return
-end function IDeltaA_EM
-
-function IDeltaADag_EM(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaADag_EM, c
-
-    c = me(3,it2,itp2)*iden(it1,itp1)
-
-    IDeltaADag_EM = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.)
-
-    return
-end function IDeltaADag_EM
-
-function IDeltaB_EM(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaB_EM, c
-
-    c = me(3,it2,itp2)*iden(it1,itp1) 
-
-    IDeltaB_EM = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.) 
-
-    return
-end function IDeltaB_EM
-
-function IDeltaBDag_EM(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaBDag_EM, c
-
-    c = me(3,it2,itp2)*iden(it1,itp1)
-
-    IDeltaBDag_EM = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.) 
-
-    return
-end function IDeltaBDag_EM
-
-function IDeltaC_EM(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaC_EM, c
-
-    c = me(3,it1,itp1)*iden(it2,itp2) 
-
-    IDeltaC_EM = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.)
-
-    return
-end function IDeltaC_EM
-
-function IDeltaCDag_EM(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaCDag_EM, c
-
-    c = me(3,it1,itp1)*iden(it2,itp2)  
-
-    IDeltaCDag_EM = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.)
-
-    return
-end function IDeltaCDag_EM
-
-function IDeltaD_EM(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaD_EM, c
-
-    c = me(3,it1,itp1)*iden(it2,itp2)  
-
-    IDeltaD_EM = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.) 
-
-    return
-end function IDeltaD_EM
-
-function IDeltaDDag_EM(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaDDag_EM, c
-
-    c = me(3,it1,itp1)*iden(it2,itp2)  
-
-    IDeltaDDag_EM = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.) 
-
-    return
-end function IDeltaDDag_EM
-
-
-function me(i,it,itp)
-    implicit none
-    integer*4 :: i
-    complex*16 :: me, it(2),itp(2), matrix(2)
-
-    me = sum(itp(:)*matmul(sig(i,:,:),it))
-    return
-end function me
-
-
-function iden(it,itp)
-    implicit none 
-    complex*16:: iden, it(2),itp(2)
-
-    iden = sum(itp(:)*matmul(id,it))
-    return
-end function iden
 end module
 
