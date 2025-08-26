@@ -1,14 +1,13 @@
 100000         #number of events to generate
 256  			#number of walkers
-961.0  				#enu
-37.00                #thetalept
-2					#isospin combination
+1000. 				#enu
+31.79                #thetalept
 0.01d0              #total xsec accuracy
-0                   # ilept=1 muon, other electron
 225.0d0             # Fermi momentum
+40.0    				#Eshift
+0                  #1 = Full Delta Prop, 0 = Real part Only
 6  12              # nZ, nA
-1      				# 1 if Global Fermi Gas 
-40   80              # np0 ne
-400                  # np
+1     				# 1 if Global Fermi Gas 
+.true.             #CC = true, EM = false
 
 

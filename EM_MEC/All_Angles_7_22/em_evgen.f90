@@ -12,6 +12,7 @@ program ew_eventgen
    integer :: clocks(2), count_rate, seeds(2)
    integer*4 :: nw,nZ,xA,i_fg,Deltapropfull,j,ilept,gen_events,num_events,nwlk,isospin
    integer*4 :: gen_events_perproc, ierr
+   integer*4 :: local_trials, global_trials, local_events, global_events
    real*8 :: wmax,enu,thetalept,xpf,Eshift,hw,sig,sig_err
    real*8 :: xmlept,start,finish,total_sig,total_sig_err
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
@@ -39,7 +40,6 @@ program ew_eventgen
       read(5,*) gen_events
       read(5,*) nwlk
       read(5,*) enu 
-      read(5,*) thetalept
       read(5,*) xsec_acc
       read(5,*) xpf
       read(5,*) Eshift
@@ -48,9 +48,7 @@ program ew_eventgen
       read(5,*) i_fg
       read(5,*) CC
 
-      write(theta_str, '(F0.2)') thetalept
-      idx = index(theta_str, '.')
-      theta_str(idx:idx) = 'p'
+      
       if(CC.eqv..true.) then
          int_string = 'EW'
       else
@@ -62,9 +60,7 @@ program ew_eventgen
       else
          FG_string = 'SF'
       endif
-
-      write(fname,'(A,A,A,A,A,I0,A,A,A)') 'test2_',trim(int_string), &
-      &  '_',trim(FG_string),'_Ebeam_', int(enu),'_',trim(theta_str),'.out'
+      write(fname,'(A,A,A,A,A,I0,A)') 'test_',trim(int_string),'_',trim(FG_string),'_Ebeam_', int(enu),'.out'
       if (myrank().eq.0) then
          print*, 'Output file: ', fname
       endif
@@ -79,7 +75,6 @@ program ew_eventgen
    call bcast(gen_events)
    call bcast(nwlk)
    call bcast(enu)
-   call bcast(thetalept)
    call bcast(seeds(1))
    call bcast(seeds(2))
    call bcast(xsec_acc)
@@ -93,7 +88,6 @@ program ew_eventgen
    call bcast(CC)
 
    ti=MPI_Wtime()
-   thetalept=thetalept/180.0d0*pi
 
    !Do random seed allocation
    allocate(irn_int0(nwlk),irn_event0(nwlk))
@@ -140,11 +134,18 @@ program ew_eventgen
    endif
 
    !Compute the cross section and generate events
-   call mc_eval(enu,thetalept,sig,sig_err,saved_events)
+   call mc_eval(enu,sig,sig_err,saved_events)
 
    !Print events to temp files
    call print_unweighted_events(saved_events,11+myrank())
 
+   !Get the total number of trials
+   local_trials = saved_events%trials
+   call addall(local_trials,global_trials)
+   call bcast(global_trials)
+   local_events = saved_events%num_gen_events
+   call addall(local_events,global_events)
+   call bcast(global_events)
    call sleep(1)
 
    close(11+myrank())
@@ -154,7 +155,7 @@ program ew_eventgen
    if(myrank().eq.0) then
 
       open(unit=1, file=fname, status='replace', action='write')
-      write(1, '(F0.0)') sig
+      write(1,'(ES24.16,1X,I0,1X,I0)') sig, global_trials, global_events
       close(1)
       command = 'cat'
       command = trim(command) // ' process* >> ' // trim(fname) 

@@ -49,7 +49,7 @@ program ew_eventgen
       write(theta_str, '(F0.2)') q2min
       idx = index(theta_str, '.')
       theta_str(idx:idx) = 'p'
-      write(fname,'(A,I0,A,A,A,I0,A)') 'test_FG_', int(enu), '_', &
+      write(fname,'(A,I0,A,A,A,I0,A)') 'test_FGr_full_', int(enu), '_', &
          & trim(theta_str), '_', isospin,'.out'
       if (myrank().eq.0) then
          print*, 'Output file: ', fname

@@ -1,6 +1,6 @@
 module dirac_matrices
     implicit none
-    integer*4, private, save :: i_fl, pair_isospin
+    integer*4, private, save :: i_fl, pair_isospin,Deltapropfull
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
@@ -19,7 +19,7 @@ module dirac_matrices
     complex*16, private, save :: uk1(2,4),ukp1(2,4), &
             &   ubark1(2,4),ubarkp1(2,4)
     complex*16, private, save :: iso(2,2)
-    complex*16, private, save :: gamma_mu(4,4,5),g_munu(4,4)
+    complex*16, private, save :: gamma_mu(4,4,5),g_munu(4,4),gamma_5mu(4,4,4)
     complex*16, private, save :: p1_sl(4,4),p2_sl(4,4),pp1_sl(4,4),pp2_sl(4,4), &
          &   k1_sl(4,4),k2_sl(4,4),q_sl(4,4), &
          &   Pi_k1(4,4),Pi_k2(4,4)
@@ -27,18 +27,24 @@ module dirac_matrices
     real*8, private, save ::  p1(4),p2(4),pp1(4),pp2(4)
     complex*16, private, save :: J_a_mu(4,4,4),J_b_mu(4,4,4),J_c_mu(4,4,4),J_d_mu(4,4,4)
     complex*16, private, save :: J_pif(4,4,4),J_sea1(4,4,4),J_sea2(4,4,4),J_pl1(4,4,4),J_pl2(4,4,4)    
-    real*8, private,save :: xmd,xmn,xmpi,w, xmlept1, xmlept2
+    real*8, private,save :: xmd,xmn,xmpi,w,xmlept1,xmlept2,ax
 contains
 
-subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in)
+subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in,CC_in,Deltapropfull_in)
+    use mympi
+    use isospin_op
     implicit none
-    integer*4 :: i
+    integer*4 :: i,Deltapropfull_in
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
+    logical :: CC_in
+
     xmd=xmd_in
     xmn=xmn_in
     xmpi=xmpi_in
     xmlept1 = xmlept1_in
     xmlept2 = xmlept2_in
+    Deltapropfull = Deltapropfull_in
+
     sig(:,:,:)=czero
     id(:,:)=czero
     id(1,1)=cone;id(2,2)=cone
@@ -49,12 +55,15 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in)
     gamma_mu(1:2,1:2,1)=id;gamma_mu(3:4,3:4,1)=-id
     id4=czero    
     id4(1:2,1:2)=id;id4(3:4,3:4)=id
+    gamma_mu(1:2,3:4,5)=id
+    gamma_mu(3:4,1:2,5)=id
     do i=2,4
       gamma_mu(1:2,3:4,i)=sig(i-1,:,:)
       gamma_mu(3:4,1:2,i)=-sig(i-1,:,:)
+      gamma_5mu(:,:,i) = matmul(gamma_mu(:,:,5),gamma_mu(:,:,i))
     enddo
-    gamma_mu(1:2,3:4,5)=id
-    gamma_mu(3:4,1:2,5)=id
+    gamma_5mu(:,:,1) = matmul(gamma_mu(:,:,5),gamma_mu(:,:,1))
+
     g_munu=czero
     g_munu(1,1)=cone;g_munu(2,2)=-cone;g_munu(3,3)=-cone;g_munu(4,4)=-cone
     up(1)=cone;up(2)=czero
@@ -62,6 +71,19 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in)
 
     iso(1,:)=up 
     iso(2,:)=down
+
+    call set_up_isospin_ops(CC_in)
+    if(CC_in.eqv..false.) then
+        ax = 0.0d0 
+        if (myrank().eq.0) then
+            write(6,*)'Axial operators off'
+        endif
+    else
+        ax = 1.0d0  
+        if (myrank().eq.0) then
+            write(6,*)'Axial operators on'
+        endif
+    endif
 
 end subroutine 
 
@@ -268,27 +290,32 @@ subroutine det_Jpi()
    implicit none
    integer*4 :: mu
    real*8 :: fpik1,fpik2,frho1,frho2,fact
-   fpik1=(lpi**2-xmpi**2)/(lpi**2-k1(1)**2+sum(k1(2:4)**2))
-   fpik2=(lpi**2-xmpi**2)/(lpi**2-k2(1)**2+sum(k2(2:4)**2))
-   frho1=0.0d0!1.0d0/(1.0d0-(k1(1)**2-sum(k1(2:4)**2))/xmrho**2)
-   frho2=0.0d0!1.0d0/(1.0d0-(k2(1)**2-sum(k2(2:4)**2))/xmrho**2)
+   real*8 :: k1sq,k2sq,qsq
+   k1sq = k1(1)**2 - dot_product(k1(2:4),k1(2:4))
+   k2sq = k2(1)**2 - dot_product(k2(2:4),k2(2:4))
+   qsq = q(1)**2 - dot_product(q(2:4),q(2:4))
+   
+   fpik1=(lpi**2-xmpi**2)/(lpi**2-k1sq)
+   fpik2=(lpi**2-xmpi**2)/(lpi**2-k2sq)
+   frho1=1.0d0/(1.0d0-(k1sq)/xmrho**2)
+   frho2=1.0d0/(1.0d0-(k2sq)/xmrho**2)
    !...this factor is needed to fulfill current conservation, see A3 Dekker
-   fact=(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)*(k2(1)**2-sum(k2(2:4)**2)-xmpi**2) &
-        & *(1.0d0/(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)/(k2(1)**2-sum(k2(2:4)**2)-xmpi**2) &
-        & - 1.0d0/(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)/(lpi**2-k1(1)**2+sum(k1(2:4)**2)) &
-        & - 1.0d0/(k2(1)**2-sum(k2(2:4)**2)-xmpi**2)/(lpi**2-k2(1)**2+sum(k2(2:4)**2)))
+   fact=(k1sq-xmpi**2)*(k2(1)**2-sum(k2(2:4)**2)-xmpi**2) &
+        & *(1.0d0/(k1sq-xmpi**2)/(k2sq-xmpi**2) &
+        & - 1.0d0/(k1sq-xmpi**2)/(lpi**2-k1sq) &
+        & - 1.0d0/(k2sq-xmpi**2)/(lpi**2-k2sq))
    do mu=1,4
       J_pif(:,:,mu)=gep*(k1(mu)-k2(mu))*Pi_k1(:,:)!*fact
-      J_sea1(:,:,mu)=-gep*matmul(gamma_mu(:,:,5),gamma_mu(:,:,mu))-frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
-      J_sea2(:,:,mu)=gep*matmul(gamma_mu(:,:,5),gamma_mu(:,:,mu))+frho2/ga*gamma_mu(:,:,mu)!/fpik1**2
-      J_pl1(:,:,mu)=frho1/ga*q(mu)*q_sl(:,:)/(q(1)**2-q(4)**2-xmpi**2)
-      J_pl2(:,:,mu)=-frho2/ga*q(mu)*q_sl(:,:)/(q(1)**2-q(4)**2-xmpi**2)
+      J_sea1(:,:,mu)=-gep*gamma_5mu(:,:,mu)-ax*frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
+      J_sea2(:,:,mu)=gep*gamma_5mu(:,:,mu)+ax*frho2/ga*gamma_mu(:,:,mu)!/fpik1**2
+      J_pl1(:,:,mu)=frho1/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
+      J_pl2(:,:,mu)=-frho2/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
    enddo
   J_pif=J_pif*fpik1*fpik2*fpinn2/xmpi**2 
   J_sea1=J_sea1*fpik2**2*fpinn2/xmpi**2
   J_sea2=J_sea2*fpik1**2*fpinn2/xmpi**2
-  J_pl1=J_pl1*fpinn2/xmpi**2*fpik2**2
-  J_pl2=J_pl2*fpinn2/xmpi**2*fpik1**2
+  J_pl1=ax*J_pl1*fpinn2/xmpi**2*fpik2**2
+  J_pl2=ax*J_pl2*fpinn2/xmpi**2*fpik1**2
   return
 end subroutine  
 
@@ -359,27 +386,34 @@ subroutine det_JaJb_JcJd()
       !!!...I AM USING THE FULL 
       do j=1,4
          RSa(:,:,i,j)=matmul(pa_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pa(i)*pa(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pa(j)-gamma_mu(:,:,j)*pa(i))/3.0d0/xmd) &
-    &    *(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
-    !   &     *(pa(1)**2-sum(pa(2:4)**2)-xmd**2)/((pa(1)**2-sum(pa(2:4)**2)-xmd**2)**2+xmd**2*ga**2)
+    &    2.0d0*pa(i)*pa(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pa(j)-gamma_mu(:,:,j)*pa(i))/3.0d0/xmd)
 
          RSb(:,:,i,j)=matmul(pb_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pb(i)*pb(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pb(j)-gamma_mu(:,:,j)*pb(i))/3.0d0/xmd) &
-    &    *(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
-    !   &     *(pb(1)**2-sum(pb(2:4)**2)-xmd**2)/((pb(1)**2-sum(pb(2:4)**2)-xmd**2)**2+xmd**2*gb**2)
+    &    2.0d0*pb(i)*pb(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pb(j)-gamma_mu(:,:,j)*pb(i))/3.0d0/xmd) 
+       
          RSc(:,:,i,j)=matmul(pc_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pc(i)*pc(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pc(j)-gamma_mu(:,:,j)*pc(i))/3.0d0/xmd) &
-    &    *(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
-    !   &     *(pc(1)**2-sum(pc(2:4)**2)-xmd**2)/((pc(1)**2-sum(pc(2:4)**2)-xmd**2)**2+xmd**2*gc**2)
+    &    2.0d0*pc(i)*pc(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pc(j)-gamma_mu(:,:,j)*pc(i))/3.0d0/xmd) 
+       
          RSd(:,:,i,j)=matmul(pd_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pd(i)*pd(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pd(j)-gamma_mu(:,:,j)*pd(i))/3.0d0/xmd) &
-    &    *(1.0d0/(pd(1)**2-sum(pd(2:4)**2)-xmd_d**2))
-    !   &     *(pd(1)**2-sum(pd(2:4)**2)-xmd**2)/((pd(1)**2-sum(pd(2:4)**2)-xmd**2)**2+xmd**2*gd**2)
-    
-         J_a_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
-         J_b_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ca5*xmn*g_munu(j,i)*id4(:,:)
-         J_c_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
-         J_d_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ca5*xmn*g_munu(j,i)*id4(:,:)
+    &    2.0d0*pd(i)*pd(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pd(j)-gamma_mu(:,:,j)*pd(i))/3.0d0/xmd) 
+
+
+       if(Deltapropfull.eq.1) then
+        RSa(:,:,i,j) = RSa(:,:,i,j)*(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
+        RSb(:,:,i,j) = RSb(:,:,i,j)*(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
+        RSc(:,:,i,j) = RSc(:,:,i,j)*(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
+        RSd(:,:,i,j) = RSd(:,:,i,j)*(1.0d0/(pd(1)**2-sum(pd(2:4)**2)-xmd_d**2))
+       else
+        RSa(:,:,i,j) = RSa(:,:,i,j)*(pa(1)**2-sum(pa(2:4)**2)-xmd**2)/((pa(1)**2-sum(pa(2:4)**2)-xmd**2)**2+xmd**2*ga**2)
+        RSb(:,:,i,j) = RSb(:,:,i,j)*(pb(1)**2-sum(pb(2:4)**2)-xmd**2)/((pb(1)**2-sum(pb(2:4)**2)-xmd**2)**2+xmd**2*gb**2)
+        RSc(:,:,i,j) = RSc(:,:,i,j)*(pc(1)**2-sum(pc(2:4)**2)-xmd**2)/((pc(1)**2-sum(pc(2:4)**2)-xmd**2)**2+xmd**2*gc**2)
+        RSd(:,:,i,j) = RSd(:,:,i,j)*(pd(1)**2-sum(pd(2:4)**2)-xmd**2)/((pd(1)**2-sum(pd(2:4)**2)-xmd**2)**2+xmd**2*gd**2)
+       endif
+
+         J_a_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ax*ca5*xmn*g_munu(i,j)*id4(:,:)
+         J_b_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ax*ca5*xmn*g_munu(j,i)*id4(:,:)
+         J_c_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ax*ca5*xmn*g_munu(i,j)*id4(:,:)
+         J_d_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ax*ca5*xmn*g_munu(j,i)*id4(:,:)
     !         J_a_2(:,:,i,j)=0.5d0*cv3*matmul(q(j)*gamma_mu(:,:,i)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),gamma_mu(:,:,i))), &
     !    &                   gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
     !         J_b_1(:,:,i,j)=0.5d0*cv3*matmul(gamma_mu(:,:,5),q(i)*gamma_mu(:,:,j)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),& 
@@ -416,6 +450,7 @@ subroutine det_JaJb_JcJd()
 end subroutine
 
 subroutine JDeltaFixed(jtot)
+    use isospin_op
     implicit none
     integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
     complex*16 :: j_1(2,2),j_2(2,2)
@@ -510,14 +545,14 @@ subroutine JDelta(janti)
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JDeltaFixed(j1212)
 
-    !call had_current_init(p2_,p1_,pp1_,pp2_)
-    !call JDeltaFixed(j2112)
+    call had_current_init(p2_,p1_,pp1_,pp2_)
+    call JDeltaFixed(j2112)
 
     call had_current_init(p1_,p2_,pp2_,pp1_)
     call JDeltaFixed(j1221)
 
-    !call had_current_init(p2_,p1_,pp2_,pp1_)
-    !call JDeltaFixed(j2121)
+    call had_current_init(p2_,p1_,pp2_,pp1_)
+    call JDeltaFixed(j2121)
 
     do ti1=1,2
         do ti2=1,2
@@ -542,11 +577,12 @@ subroutine JDelta(janti)
 end subroutine JDelta
 
 subroutine JPiFixed(jtot)
+   use isospin_op
    implicit none
     integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
     complex*16 :: j_1(2,2),j_2(2,2)
-    complex*16 :: js1_sub(2,2,4),js2_sub(2,2,4)
-    complex*16 :: js1(2,2,2,2,4), js2(2,2,2,2,4)
+    complex*16 :: js1_sub(2,2,4),js2_sub(2,2,4),jp1_sub(2,2,4),jp2_sub(2,2,4)
+    complex*16 :: js1(2,2,2,2,4), js2(2,2,2,2,4), jp1(2,2,2,2,4), jp2(2,2,2,2,4)
     complex*16 :: jf(2,2,2,2,4), jtot(2,2,2,2,2,2,2,2,4)
     complex*16 :: iso_a(2,2,2,2)
 
@@ -561,6 +597,8 @@ subroutine JPiFixed(jtot)
     js1 = czero
     js2= czero
     jf = czero
+    jp1 = czero
+    jp2 = czero
     js1_sub=czero
     js2_sub=czero
 
@@ -572,6 +610,8 @@ subroutine JPiFixed(jtot)
          do i=1,4
             js1_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_sea1(:,:,i),up1(i1,:)))
             js2_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_sea2(:,:,i),up2(i1,:)))
+            jp1_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pl1(:,:,i),up1(i1,:)))
+            jp2_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_pl2(:,:,i),up2(i1,:)))
             do i2=1,2
                 do f2=1,2
                     jf(f2,f1,i2,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pif(:,:,i),up1(i1,:))) &
@@ -586,10 +626,13 @@ subroutine JPiFixed(jtot)
         do i2=1,2
             do f1=1,2
                 do f2=1,2
-                    iso_a(f2,f1,i2,i1)=-Ivz(iso(i1,:),iso(i2,:),iso(f1,:),iso(f2,:))
+                    iso_a(f2,f1,i2,i1)=-Iv(iso(i1,:),iso(i2,:),iso(f1,:),iso(f2,:))
                     do i=1,4
                         js1(f2,f1,i2,i1,i)=j_2(f2,i2)*js1_sub(f1,i1,i)
-                        js2(f2,f1,i2,i1,i)=j_1(f1,i1)*js2_sub(f2,i2,i)   
+                        js2(f2,f1,i2,i1,i)=j_1(f1,i1)*js2_sub(f2,i2,i) 
+
+                        jp1(f2,f1,i2,i1,i)=j_2(f2,i2)*jp1_sub(f1,i1,i)
+                        jp2(f2,f1,i2,i1,i)=j_1(f1,i1)*jp2_sub(f2,i2,i)   
                     enddo
                 enddo
             enddo
@@ -601,7 +644,8 @@ subroutine JPiFixed(jtot)
             do tf1=1,2
                 do tf2=1,2
                     jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) = iso_a(tf2,tf1,ti2,ti1)&
-                        & * (js1(:,:,:,:,:) + js2(:,:,:,:,:) + jf(:,:,:,:,:))
+                        & * (js1(:,:,:,:,:) + js2(:,:,:,:,:) + jf(:,:,:,:,:)&
+                        & + jp1(:,:,:,:,:) + jp2(:,:,:,:,:))
                 enddo
             enddo
         enddo
@@ -627,14 +671,14 @@ subroutine JPi(janti)
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JPiFixed(j1212)
 
-    !call had_current_init(p2_,p1_,pp1_,pp2_)
-    !call JPiFixed(j2112)
+    call had_current_init(p2_,p1_,pp1_,pp2_)
+    call JPiFixed(j2112)
 
     call had_current_init(p1_,p2_,pp2_,pp1_)
     call JPiFixed(j1221)
 
-    !call had_current_init(p2_,p1_,pp2_,pp1_)
-    !call JPiFixed(j2121)
+    call had_current_init(p2_,p1_,pp2_,pp1_)
+    call JPiFixed(j2121)
 
     do ti1=1,2
         do ti2=1,2
@@ -664,15 +708,25 @@ subroutine lept_tens(lept)
    integer*4 :: i1,f1,i,j
    complex*16 :: J_mu(2,2,4),J_mu_dag(2,2,4)
    complex*16 :: lept(4,4)
-
-   do i1=1,2
-      do f1=1,2
-         do i=1,4
-            J_mu(f1,i1,i)=sum(ubarkp1(f1,:)*matmul(gamma_mu(:,:,i),uk1(i1,:)))/sqrt(2.0d0)
-            J_mu_dag(f1,i1,i)=conjg(J_mu(f1,i1,i))
-         enddo
-      enddo
-   enddo
+   if(ax.eq.0.0d0) then 
+       do i1=1,2
+          do f1=1,2
+             do i=1,4
+                J_mu(f1,i1,i)=sum(ubarkp1(f1,:)*matmul(gamma_mu(:,:,i),uk1(i1,:)))
+                J_mu_dag(f1,i1,i)=conjg(J_mu(f1,i1,i))
+             enddo
+          enddo
+       enddo
+    else
+       do i1=1,2
+          do f1=1,2
+             do i=1,4
+                J_mu(f1,i1,i)=sum(ubarkp1(f1,:)*matmul(gamma_mu(:,:,i),matmul((id4(:,:)-gamma_mu(:,:,5)),uk1(i1,:))))/sqrt(2.0d0)
+                J_mu_dag(f1,i1,i)=conjg(J_mu(f1,i1,i))
+             enddo
+          enddo
+       enddo
+    endif
    
    lept=czero
    do i1=1,2
@@ -685,7 +739,7 @@ subroutine lept_tens(lept)
       enddo
    enddo
 
-   lept = lept*4.0d0
+   lept = lept*2.0d0
  
   return
 end subroutine lept_tens
@@ -722,7 +776,7 @@ subroutine delta_se(pd2,width,pot)
 !      width=120.0d0
 
       width=0.38/(3.0d0*xmpi**2)*kpi**3/sqrt(pd2)*(xmn+eknuc)  &
-   &  *rfa**2-pot*2.0d0!*(lpind**2/(lpind**2-xmpi**2))**2
+   &  *rfa**2!-pot*2.0d0!*(lpind**2/(lpind**2-xmpi**2))**2
 
 
       return
@@ -731,134 +785,6 @@ subroutine delta_se(pd2,width,pot)
 
    return
 end subroutine
-
-function Ivz(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: Ivz
-
-    Ivz = ci*(me(1,it1,itp1)*me(2,it2,itp2) - me(2,it1,itp1)*me(1,it2,itp2))
-
-    return
-end function Ivz
-
-
-function IDeltaA(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaA, c
-
-    c = me(3,it2,itp2)*iden(it1,itp1)
-
-    IDeltaA = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.)
-    !IDeltaA = me(1,it1,itp1)*me(1,it2,itp2)
-
-    return
-end function IDeltaA
-
-function IDeltaADag(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaADag, c
-
-    c = me(3,it2,itp2)*iden(it1,itp1)
-
-    IDeltaADag = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.)
-    !IDeltaADag = me(1,it1,itp1)*me(1,it2,itp2)
-
-
-    return
-end function IDeltaADag
-
-function IDeltaB(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaB, c
-
-    c = me(3,it2,itp2)*iden(it1,itp1) 
-
-    IDeltaB = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.) 
-
-    return
-end function IDeltaB
-
-function IDeltaBDag(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaBDag, c
-
-    c = me(3,it2,itp2)*iden(it1,itp1)
-
-    IDeltaBDag = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.) 
-
-    return
-end function IDeltaBDag
-
-function IDeltaC(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaC, c
-
-    c = me(3,it1,itp1)*iden(it2,itp2) 
-
-    IDeltaC = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.)
-
-    return
-end function IDeltaC
-
-function IDeltaCDag(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaCDag, c
-
-    c = me(3,it1,itp1)*iden(it2,itp2)  
-
-    IDeltaCDag = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.)
-
-    return
-end function IDeltaCDag
-
-function IDeltaD(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaD, c
-
-    c = me(3,it1,itp1)*iden(it2,itp2)  
-
-    IDeltaD = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.) 
-
-    return
-end function IDeltaD
-
-function IDeltaDDag(it1,it2,itp1,itp2)
-    implicit none
-    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaDDag, c
-
-    c = me(3,it1,itp1)*iden(it2,itp2)  
-
-    IDeltaDDag = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.) 
-
-    return
-end function IDeltaDDag
-
-function me(i,it,itp)
-    implicit none
-    integer*4 :: i
-    complex*16 :: me, it(2),itp(2), matrix(2)
-
-    me = sum(itp(:)*matmul(sig(i,:,:),it))
-    return
-end function me
-
-
-function iden(it,itp)
-    implicit none 
-    complex*16:: iden, it(2),itp(2)
-
-    iden = sum(itp(:)*matmul(id,it))
-    return
-end function iden
 
 end module
 
