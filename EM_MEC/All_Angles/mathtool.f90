@@ -458,5 +458,16 @@ subroutine getrn(irnout)
     irnout=irn
 end subroutine getrn 
 
+function randint(n) result(k)
+  implicit none
+  integer, intent(in) :: n
+  real(kind=r8) :: r
+  integer(kind=i4) :: k
+  if (n <= 0) stop "randint: n must be > 0"
+  r = ran()          ! r in [0,1)
+  k = 1 + int(r * n)             ! int = floor for positive numbers
+  if (k > n) k = n               ! super-safe guard (in case r==1 due to FP)
+end function
+
 end module mathtool
     

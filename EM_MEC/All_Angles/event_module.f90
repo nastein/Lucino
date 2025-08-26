@@ -19,6 +19,7 @@ module event_module
         integer*4 :: size = 0
         integer*4 :: num_gen_events=0
         integer*4 :: capacity = 0
+        integer*4 :: trials = 0
     contains
         procedure :: add_event => vector_add_event
     endtype
@@ -34,12 +35,13 @@ module event_module
             endif
             !print*,'Added event'
             this%size = this%size + 1
+            this%num_gen_events = this%num_gen_events + 1
             this%events(this%size) = event
         end subroutine vector_add_event
 
         subroutine increase_event_container_capacity(this)
             type(event_container_t), intent(inout) :: this 
-            type(event_t), allocatable :: temp(:)
+            type(event_t), allocatable :: temp(:),new_events(:)
             integer*4 :: new_capacity
 
             if(this%capacity.eq.0) then
@@ -48,21 +50,24 @@ module event_module
                 new_capacity = this%capacity * 2
             endif
 
-            allocate(temp(new_capacity))
+            !allocate(temp(new_capacity))
+            allocate(new_events(new_capacity))
             if (this%size.gt.0) then
-                temp(1:this%size) = this%events(1:this%size)
-            endif
+                !temp(1:this%size) = this%events(1:this%size)
+                new_events(1:this%size) = this%events(1:this%size)  ! one copy of live items
+            end if
 
-            call move_alloc(temp, this%events)
+            !call move_alloc(temp, this%events)
+            call move_alloc(new_events, this%events)  ! intrinsic: no copy here
             this%capacity = new_capacity
         end subroutine increase_event_container_capacity
 
-        subroutine move_alloc(source, dest)
-            type(event_t), allocatable, intent(inout) :: source(:)
-            type(event_t), allocatable, intent(out) :: dest(:)
-            dest = source
-            deallocate(source)
-        end subroutine move_alloc
+        !subroutine move_alloc(source, dest)
+        !    type(event_t), allocatable, intent(inout) :: source(:)
+        !    type(event_t), allocatable, intent(out) :: dest(:)
+        !    dest = source
+        !    deallocate(source)
+        !end subroutine move_alloc
 
         subroutine print_unweighted_events(this,fileunit)
             type(event_container_t), intent(inout) :: this
