@@ -1,0 +1,22 @@
+This folder computes the total cross section for MEC events at a fixed beam energy
+
+input_tot_xsec.in is the input card which controls the number of events, beam energy, CC or EM events
+as well as whether you want to use a SF or FG, and things about the Delta propagator
+
+The output file is a list of events, the first line is the total cross section, 
+the number of trial events(useful for computing unweighting efficiency), and the number of generated events 
+Every event contains the 4 vectors of all the particles involved in order:
+incoming lepton
+outgoing lepton
+incoming nucleon 1
+outgoing nucleon 1
+incoming nucleon 2
+outgoing nucleon 2
+weight of the event
+
+These can then be fed into an event generator to be cascaded.
+
+If you find that a warning is printed that a weight has been selected which is greater than the max weight
+you should unfortunately restart the event generation as this will produced a biased sample
+I have only a very simple unweighter implemented, you could change the safety factor
+which is the max weight * 1.5 now, you could use a larger safety factor of 2 but the code will be slower
