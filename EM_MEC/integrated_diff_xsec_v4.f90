@@ -236,7 +236,7 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
       enddo
       iv = iv+1
 
-      if (mod(iv, 5000) == 0) then  ! every 5000 outer loops
+      if (mod(iv, 1000) == 0) then  ! every 5000 outer loops
          call addall(r_avg, xsec_sum_tmp)
          call addall(r_err, xsec_sqsum_tmp)
          call addall(i_avg, nsamples_tmp)
@@ -501,12 +501,12 @@ subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    enu_vf=enu_v/hbarc
    tan2=(1.0d0-cos_theta)/(1.0d0+cos_theta)
 
-   !.....compute sigma_mott [ fm^2 --> mb ]
+   !.....compute sigma_mott [ fm^2 --> pb ]
    if(CC.eqv..true.) then
-     sig0=1.e15*(G_F*cb)**2 /(4.0d0*pi**2)*pmu*emu/2.0d0 * hbarc**2
+     sig0=1.e10*(G_F*cb)**2 /(4.0d0*pi**2)*pmu*emu/2.0d0 * hbarc**2
 
    else
-      !.....compute sigma_mott [ fm^2 --> mb ]
+      !.....compute sigma_mott [ fm^2 --> mb --> pb ]
       !If using response functions
       !sig0=alpha**2/2.0d0/(1.0d0-cos_theta)/eef**2/tan2
       !sig0=1.e9*sig0*10.0d0
