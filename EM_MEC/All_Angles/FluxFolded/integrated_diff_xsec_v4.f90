@@ -523,18 +523,18 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    enu_vf=enu_v/hbarc
    tan2=(1.0d0-cos_theta)/(1.0d0+cos_theta)
 
-   !.....compute sigma_mott [ fm^2 --> pb ]
+   !.....compute sigma_mott [ fm^2 --> nb ]
    if(CC.eqv..true.) then
-     sig0=1.e10*(G_F*cb)**2 /(4.0d0*pi**2)*pmu*emu/2.0d0 * hbarc**2
+     sig0=1.e7*(G_F*cb)**2 /(4.0d0*pi**2)*pmu*emu/2.0d0 * hbarc**2
 
    else
-      !.....compute sigma_mott [ fm^2 --> mb --> pb ]
+      !.....compute sigma_mott [ fm^2 --> nb ]
       !If using response functions
       !sig0=alpha**2/2.0d0/(1.0d0-cos_theta)/eef**2/tan2
       !sig0=1.e9*sig0*10.0d0
 
       !If doing contraction
-      sig0=1.e9 * 10.0d0* hbarc**2 * alpha**2 * (emu**2) /q2**2 
+      sig0=1.e7*hbarc**2 * alpha**2 * (emu**2) /q2**2 
    endif 
 
    !Fix lepton kinematics (choose x-z plane and q along z)
