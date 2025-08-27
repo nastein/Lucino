@@ -246,7 +246,7 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
             w2mean = xsec_sqsum_tmp / dble(nsamples_tmp)
             xsec_err_tmp = sqrt((w2mean - wmean**2) / dble(nsamples_tmp))
 
-            write(6,'(A,F12.6,A,F12.6,A)', advance='no') &
+            write(6,'(A,ES24.16,A,F12.6,A)', advance='no') &
             &  achar(13)//'xsec = ', wmean, ', err = ', 100.0d0*xsec_err_tmp/wmean, '%'
             call flush(6)   
             if(100.0d0*xsec_err_tmp/wmean.lt.1.0d0) then 
