@@ -541,14 +541,14 @@ subroutine JDelta(janti)
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JDeltaFixed(j1212)
 
-    call had_current_init(p2_,p1_,pp1_,pp2_)
-    call JDeltaFixed(j2112)
+    !call had_current_init(p2_,p1_,pp1_,pp2_)
+    !call JDeltaFixed(j2112)
 
     call had_current_init(p1_,p2_,pp2_,pp1_)
     call JDeltaFixed(j1221)
 
-    call had_current_init(p2_,p1_,pp2_,pp1_)
-    call JDeltaFixed(j2121)
+    !call had_current_init(p2_,p1_,pp2_,pp1_)
+    !call JDeltaFixed(j2121)
 
     do ti1=1,2
         do ti2=1,2
@@ -667,14 +667,14 @@ subroutine JPi(janti)
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JPiFixed(j1212)
 
-    call had_current_init(p2_,p1_,pp1_,pp2_)
-    call JPiFixed(j2112)
+    !call had_current_init(p2_,p1_,pp1_,pp2_)
+    !call JPiFixed(j2112)
 
     call had_current_init(p1_,p2_,pp2_,pp1_)
     call JPiFixed(j1221)
 
-    call had_current_init(p2_,p1_,pp2_,pp1_)
-    call JPiFixed(j2121)
+    !call had_current_init(p2_,p1_,pp2_,pp1_)
+    !call JPiFixed(j2121)
 
     do ti1=1,2
         do ti2=1,2

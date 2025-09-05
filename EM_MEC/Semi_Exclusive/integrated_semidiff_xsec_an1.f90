@@ -415,7 +415,7 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,g,i_avg,events,max_weight,r
 
    !TODO remember where this 2pi came from! Azimuthal symmetry?
    !Aug 20 (Noah deleted f*2pi because we don't want to integrate over the azimuthal angle)
-   !Aug 26 Factor of 2 is because I consider antisymmetric states
+   !Aug 26 Factor of 4 is because I consider antisymmetric initial and final states
    f=f/g/4.0d0 
 
    if(ABS(f).ge.max_weight) then
@@ -529,14 +529,27 @@ subroutine f_eval(i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    call int_eval(probeP4,outlepP4,phiprot,cos(thetaprot),pj2,ctp2,phip2, &
       &  pj1,ctp1,phip1,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
       &  i1,i2,i1p,i2p)
-   r_now=r_now*2.0d0**2*(2.0d0*pi)!removed factor of 4pi because cospp1 and phipp1 are fixed now
+
+   !I integrate over 2phis and 2 cosines
+   r_now=r_now*2.0d0**2*(2.0d0*pi)**2
+
+   Rcc = r_now(1,1)
+   Rcl = 0.5d0*(r_now(1,4) + r_now(4,1))
+   Rll = r_now(4,4)
+   Rt = r_now(2,2) + r_now(3,3)
+   Rl = Rcc
+   Rtt = r_now(2,2) - r_now(3,3)
+   Rct = r_now(1,2) + r_now(2,1)
+   Rlt = lambda/kappa * Rct
+   Rclt = Rct
 
    !Initializes lepton spinors
    call lept_tens(lept_now)
 
-   call contract(r_now,lept_now,ampsq)
+   !call contract(r_now,lept_now,ampsq)
 
-   sig=sig0*(real(ampsq))
+   !sig=sig0*(real(ampsq))
+   sig=sig0*real(Vcc*Rcc - 2.0d0*Vcl*Rcl +Vll*Rll + Vt*Rt + Vtt*Rtt)
    f=sig
 
    my_particles(1)%p4 = probeP4   
@@ -705,8 +718,8 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
    
-      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**8*(had(:,:))* &
-   &      jac/rho*dble(xA)/2.0d0/2.0d0! /2.0d0 for the electromagnetic piece
+      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**9*(had(:,:))* &
+   &      jac/rho*dble(xA)
 
    return
 end subroutine   

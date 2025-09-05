@@ -543,14 +543,26 @@ subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    call int_eval(probeP4,outlepP4,pj2,ctp2,phip2, &
       &  pj1,ctp1,phip1,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
       &  i1,i2,i1p,i2p)
-   r_now=r_now*2.0d0**3*(2.0d0*pi)**2!*ppmax removed because we are no longer samples pp1
 
+   !We sample 3 phi angles, and 3 cosines
+   r_now=r_now*2.0d0**3*(2.0d0*pi)**3!
+
+   Rcc = r_now(1,1)
+   Rcl = 0.5d0*(r_now(1,4) + r_now(4,1))
+   Rll = r_now(4,4)
+   Rt = r_now(2,2) + r_now(3,3)
+   Rl = Rcc
+   Rtt = r_now(2,2) - r_now(3,3)
+   Rct = r_now(1,2) + r_now(2,1)
+   Rlt = lambda/kappa * Rct
+   Rclt = Rct
    !Initializes lepton spinors
    call lept_tens(lept_now)
 
    call contract(r_now,lept_now,ampsq)
 
    sig=sig0*(real(ampsq))
+   !sig=sig0*real(Vcc*Rcc - 2.0d0*Vcl*Rcl +Vll*Rll + Vt*Rt)
    f=sig!*jac_c
 
    my_particles(1)%p4 = probeP4   
@@ -720,8 +732,8 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
    
-      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**8*(had(:,:))* &
-   &      lorentz_jac/rho*dble(xA)/2.0d0/2.0d0! /2.0d0 for the electromagnetic piece
+      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**9*(had(:,:))* &
+   &      lorentz_jac/rho*dble(xA)
 
    return
 end subroutine   

@@ -426,7 +426,7 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,i_avg,events,max_wei
 
    !This 2pi comes from Azimuthal symmetry, we're integrating over phi_e'
    !Aug 26 Factor of 4 is because I consider antisymmetric initial and final states
-   f=f*(2.0d0*pi)/g / 4.0d0
+   f=f*(2.0d0*pi)/g/4.0d0
 
    if(ABS(f).ge.max_weight) then
       if(eventgen.eqv..true.) then
@@ -538,7 +538,9 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    call int_eval(probeP4,outlepP4,pj2,ctp2,phip2, &
       &  pj1,ctp1,phip1,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
       &  i1,i2,i1p,i2p)
-   r_now=r_now*2.0d0**3*(2.0d0*pi)**2!*ppmax removed because we are no longer samples pp1
+
+   !We sample 3 phi angles, and 3 cosines
+   r_now=r_now*2.0d0**3*(2.0d0*pi)**3!*ppmax removed because we are no longer samples pp1
 
    !Initializes lepton spinors
    call lept_tens(lept_now)
@@ -717,8 +719,8 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
    
-      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**8*(had(:,:))* &
-   &      lorentz_jac/rho*dble(xA)/2.0d0/2.0d0! 
+      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**9*(had(:,:))* &
+   &      lorentz_jac/rho*dble(xA)
 
    return
 end subroutine   
