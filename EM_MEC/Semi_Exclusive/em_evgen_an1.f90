@@ -19,7 +19,7 @@ program ew_eventgen
    integer*8 :: ran1,ran2,i,idx
    character*50 :: intf_char,temp_fname
    character*50 :: nk_fname,int_string,FG_string,Delta_string
-   character*200 :: command, sig_char, theta_str, fname
+   character*200 :: command, sig_char, fname
    logical :: CC
 
    type(event_container_t) :: saved_events
@@ -40,7 +40,7 @@ program ew_eventgen
       read(5,*) gen_events
       read(5,*) nwlk
       read(5,*) enu 
-      read(5,*) thetalept
+      read(5,*) qval
       read(5,*) omega
       read(5,*) thetaproton
       read(5,*) phiproton
@@ -51,10 +51,6 @@ program ew_eventgen
       read(5,*) nZ,xA
       read(5,*) i_fg
       read(5,*) CC
-
-      write(theta_str, '(F0.2)') thetalept
-      idx = index(theta_str, '.')
-      theta_str(idx:idx) = 'p'
 
       if(CC.eqv..true.) then
          int_string = 'EW'
@@ -80,8 +76,8 @@ program ew_eventgen
 
 
 
-      write(fname,'(A,A,A,A,A,A,I0,A,A,A,I0,A,I0,A,I0,A)') 'test_',trim(Delta_string),trim(int_string), &
-      &  '_',trim(FG_string),'_Ebeam_', int(enu),'_etheta_',trim(theta_str), &
+      write(fname,'(A,A,A,A,A,A,I0,A,I0,A,I0,A,I0,A,I0,A)') 'test_resp_',trim(Delta_string),trim(int_string), &
+      &  '_',trim(FG_string),'_Ebeam_', int(enu),'_qval_',int(qval), &
       &  '_w_',int(omega),'_ptheta_',int(thetaproton),'_phi_',int(phiproton), '.out'
       if (myrank().eq.0) then
          print*, 'Output file: ', fname
@@ -97,7 +93,7 @@ program ew_eventgen
    call bcast(gen_events)
    call bcast(nwlk)
    call bcast(enu)
-   call bcast(thetalept)
+   call bcast(qval)
    call bcast(omega)
    call bcast(thetaproton)
    call bcast(phiproton)
@@ -113,7 +109,6 @@ program ew_eventgen
    call bcast(CC)
 
    ti=MPI_Wtime()
-   thetalept=thetalept/180.0d0*pi
    
    !Do random seed allocation
    allocate(irn_int0(nwlk),irn_event0(nwlk))
@@ -155,8 +150,6 @@ program ew_eventgen
          &  nwlk,xpf,Eshift,xmlept,xA,nZ,CC)
    num_events = 0
 
-   qval = sqrt(2*enu*(enu-omega)*(1.0d0-cos(thetalept)) + omega**2)
-
    if(myrank().eq.0) then
       write(6,*) 'Computing total cross section for Ev = ', enu, ' MeV', &
       & ', omega = ', omega, ', q = ', qval, &
@@ -164,7 +157,7 @@ program ew_eventgen
    endif
 
    !Compute the cross section and generate events
-   call mc_eval(enu,thetalept,thetaproton,phiproton,omega,sig,sig_err,saved_events)
+   call mc_eval(enu,qval,thetaproton,phiproton,omega,sig,sig_err,saved_events)
 
    !Print events to temp files
    call print_unweighted_events(saved_events,11+myrank())

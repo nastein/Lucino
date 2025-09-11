@@ -1,7 +1,7 @@
 module mc_module
    use event_module
    implicit none 
-   integer*4, private, save :: xA,nZ,i_fg,np,ne,nwlk,gen_events,isospin
+   integer*4, private, save :: xA,nZ,i_fg,np,ne,nwlk,gen_events
    complex*16, private, parameter :: czero = (0.0d0,0.0d0)
    complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
    complex*16, private, parameter :: ci    = (0.0d0,1.0d0)
@@ -12,7 +12,7 @@ module mc_module
    real*8, private, save ::  xpf,Eshift,xpmax
    real*8, private, save:: norm,norm0,norm1
    real*8, private, save:: mlept
-   real*8, private, save:: wmax,thetalept,thetaprot,phiprot,w
+   real*8, private, save:: wmax,qval,thetaprot,phiprot,w
    real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0,ppmax=1.0d0*1.e3
    real*8, private,parameter :: G_F = 1.1664e-11,cb=0.9741699d0,alpha=1.0d0/137.0d0
    real*8, private, allocatable :: pv(:),p(:),dp(:,:),ep(:),dp1(:,:),dp0(:,:)
@@ -38,8 +38,8 @@ subroutine mc_init(gen_events_in,i_fg_in,irn_int_in, &
 
    integer*8 :: irn_int_in(nwlk_in),irn_event_in(nwlk_in)
    integer*4 :: nZ_in,xA_in,i_fg_in,i,j,ne0,ien,nwlk_in
-   integer*4 :: gen_events_in,ipot,isospin_in
-   real*8 :: xpf_in,mlept_in,hp,he,thetalept_in,dummy
+   integer*4 :: gen_events_in,ipot
+   real*8 :: xpf_in,mlept_in,hp,he,dummy
    real*8 :: Eshift_in
    logical :: CC_in
    
@@ -84,6 +84,7 @@ subroutine mc_init(gen_events_in,i_fg_in,irn_int_in, &
    irn_event(:) = irn_event_in(:)
 
    if(i_fg.ne.1) then
+      if(myrank().eq.0) write(6,*)'Using Spectral Function'
       open(unit=8,file='n2b_c12_new_fmt.dat',status='unknown',form='formatted')
       read(8,*) np
       allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
@@ -103,6 +104,7 @@ subroutine mc_init(gen_events_in,i_fg_in,irn_int_in, &
       dp1=dp1/(2.0d0*pi)**6
       dp0=dp0/(2.0d0*pi)**6
    else 
+      if(myrank().eq.0) write(6,*)'Using Fermi Gas'
       np = 2*np0
       allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
       hp=xpf/dble(np)
@@ -156,7 +158,7 @@ subroutine mc_init(gen_events_in,i_fg_in,irn_int_in, &
    
 end subroutine
 
-subroutine mc_eval(Enu, thetalept_in, thetaprot_in, phiprot_in, w_in, xsec_tot, xsec_err_tot, my_events)
+subroutine mc_eval(Enu, qval_in, thetaprot_in, phiprot_in, w_in, xsec_tot, xsec_err_tot, my_events)
    use event_module
    use mathtool
    use dirac_matrices
@@ -173,7 +175,7 @@ subroutine mc_eval(Enu, thetalept_in, thetaprot_in, phiprot_in, w_in, xsec_tot, 
    integer*4 :: nsamples_tmp
 
    real*8 :: emax,ee,nk(np,np),nk_norm
-   real*8 :: Enu,sig,thetalept_in,thetaprot_in,phiprot_in,w_in
+   real*8 :: Enu,sig,qval_in,thetaprot_in,phiprot_in,w_in
    real*8 :: pmu,costheta_p,res,q2_p,np1
    real*8 :: enu_max,henu,r_avg,r_err, test_xsec_tot, test_xsec_tot_err
    
@@ -187,7 +189,7 @@ subroutine mc_eval(Enu, thetalept_in, thetaprot_in, phiprot_in, w_in, xsec_tot, 
 
    converged = .false.
 
-   thetalept = thetalept_in
+   qval = qval_in
    thetaprot = thetaprot_in * pi/180.0d0
    phiprot = phiprot_in * pi/180.0d0
    w=w_in
@@ -199,20 +201,16 @@ subroutine mc_eval(Enu, thetalept_in, thetaprot_in, phiprot_in, w_in, xsec_tot, 
    i_avg_tot=0
    i_acc_tot=0
    g_o=0.0d0
+   xsec_tot = 0.0d0 
+   xsec_err_tot = 0.0d0
    maximum_weight=0.0d0
+
+   iv=1
 
    !Initialize integrator to a random start point
    call mc_random_startpoint(g_o,i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o)
 
-   !Pick random start values for xsec and err (these don't matter)
-   xsec = 10.0d0 
-   xsec_err = 100.0d0
-   xsec_tot = 10.0d0 
-   xsec_err_tot = 100.0d0
-   iv=1
-
    call MPI_Barrier(mpi_comm_world,ierror)
-
    
    !Compute total cross section to necessary precision
    do while (converged.eqv..false.)
@@ -240,7 +238,7 @@ subroutine mc_eval(Enu, thetalept_in, thetaprot_in, phiprot_in, w_in, xsec_tot, 
             write(6,'(A,ES24.16,A,F12.6,A)', advance='no') &
             &  achar(13)//'xsec = ', wmean, ', err = ', 100.0d0*xsec_err_tmp/wmean, '%'
             call flush(6)   
-            if(100.0d0*xsec_err_tmp/wmean.lt.0.1d0) then 
+            if(100.0d0*xsec_err_tmp/wmean.lt.0.4d0) then 
                converged = .true.
             endif
          endif
@@ -457,8 +455,10 @@ subroutine f_eval(i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    integer*4 :: fg,ip,il,i1,i2,i1p,i2p
    real*8 :: emu,pmu,cos_theta,sin_theta
    real*8 :: phipp1,ctpp1,p2,ctp2,phip2,pj1,pj2,ctp1,phip1
-   real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,qval,q2
+   real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,q2
    real*8 :: v_ll,v_t,sig0,sig 
+   real*8 :: Vcc,Vcl,Vll,Vt,Vl,Vlt,Vtt,Vct,Vclt,Rcc,Rcl,Rll,Rt,Rl,Rlt,Rtt,Rct,Rclt
+   real*8 :: lambda, deltasq, rho, tau, kappa, tan2tilde, nu0
    complex*16 :: r_now(4,4),lept_now(4,4),ampsq
    real*8 :: q(4),probeP4(4),outlepP4(4),nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
    type(event_t), intent(inout) :: my_event_in
@@ -466,9 +466,8 @@ subroutine f_eval(i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
 
    emu = enu_v-w
    pmu = sqrt(emu**2-mlept**2)
-   cos_theta = cos(thetalept)
-   q2 = 2.0d0*enu_v*(emu - pmu*cos_theta) - mlept**2
-
+   q2 = qval**2 - w**2
+   cos_theta = (2*emu*enu_v - (q2 + mlept**2))/(2*enu_v*pmu) 
    sin_theta = sqrt(1.0d0 - cos_theta**2)
 
    if (abs(cos_theta).gt.1.0d0) then
@@ -476,16 +475,32 @@ subroutine f_eval(i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
       return
    endif
 
-   qval=sqrt(q2+w**2)
-
    !Sample initial state kinematics randomly
    ctp2=-1.0d0+2.0d0*ran()
    phip2=2.0d0*pi*ran()
    ctp1=-1.0d0+2.0d0*ran()
    phip1=2.0d0*pi*ran()
 
-   enu_vf=enu_v/hbarc
    tan2=(1.0d0-cos_theta)/(1.0d0+cos_theta)
+
+   lambda = w/(2.0d0*xmn)
+   kappa = qval/(2.0d0*xmn)
+   tau = kappa**2 - lambda**2
+   deltasq = mlept**2 / q2
+   rho = q2/qval**2
+   nu0 = 4.0d0*enu_v*emu - q2
+   tan2tilde = q2/nu0
+
+   Vcc = 1.0d0 
+   Vcl = lambda/kappa
+   Vll = Vcl**2
+   Vt = rho/2.0d0 + tan2tilde*(1.0d0 - 2.0d0*deltasq)
+   Vl = rho**2
+   Vtt = rho/2 - 2.0d0*deltasq*tan2tilde
+   Vct = sqrt(rho + tan2tilde)*sqrt(1.0d0 - 4.0d0*deltasq*tan2tilde/rho)
+   Vlt = lambda/kappa * Vct
+   Vclt = rho*Vct
+
 
    !.....compute sigma_mott [ fm^2 --> nb ]
    if(CC.eqv..true.) then
@@ -494,34 +509,35 @@ subroutine f_eval(i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    else
       !.....compute sigma_mott [ fm^2 --> mb --> nb ]
       !If using response functions
+      sig0=1.e7*hbarc**2 * alpha**2 /(q2**2) * pmu/enu_v * nu0
       !sig0=alpha**2/2.0d0/(1.0d0-cos_theta)/eef**2/tan2
       !sig0=1.e9*sig0*10.0d0
 
       !If doing contraction
-      sig0=1.e7*hbarc**2 * alpha**2 * (emu**2) /q2**2 
+      !sig0=1.e7*hbarc**2 * alpha**2 * (emu**2) /q2**2 
    endif 
 
    !Fix lepton kinematics (choose x-z plane and q along z)
-   !probeP4(1) = enu_v
-   !probeP4(2) = enu_v*pmu*sin_theta/qval
-   !probeP4(3) = 0.0d0
-   !probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
-
-   !outlepP4(1) = emu 
-   !outlepP4(2) = enu_v*pmu*sin_theta/qval
-   !outlepP4(3) = 0.0d0
-   !outlepP4(4) = probeP4(4) - qval
-
-   !Changed so that neutrino is along z direction
    probeP4(1) = enu_v
-   probeP4(2) = 0.0d0
+   probeP4(2) = enu_v*pmu*sin_theta/qval
    probeP4(3) = 0.0d0
-   probeP4(4) = enu_v
+   probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
 
    outlepP4(1) = emu 
-   outlepP4(2) = pmu*sin_theta
+   outlepP4(2) = enu_v*pmu*sin_theta/qval
    outlepP4(3) = 0.0d0
-   outlepP4(4) = pmu*cos_theta
+   outlepP4(4) = probeP4(4) - qval
+
+   !Changed so that neutrino is along z direction
+   !probeP4(1) = enu_v
+   !probeP4(2) = 0.0d0
+   !probeP4(3) = 0.0d0
+   !probeP4(4) = enu_v
+
+   !outlepP4(1) = emu 
+   !outlepP4(2) = pmu*sin_theta
+   !outlepP4(3) = 0.0d0
+   !outlepP4(4) = pmu*cos_theta
 
    q=probeP4-outlepP4
 

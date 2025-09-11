@@ -1,6 +1,6 @@
 module dirac_matrices
     implicit none
-    integer*4, private, save :: i_fl, pair_isospin,Deltapropfull,Deltapot
+    integer*4, private, save :: i_fl,Deltapropfull,Deltapot
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
@@ -105,7 +105,6 @@ subroutine define_spinors()
 !.......initialize normalization factors
     cp1=sqrt((p1(1)+xmn)/(2.0d0*p1(1)))
     cp2=sqrt((p2(1)+xmn)/(2.0d0*p2(1)))
-    !Deleted these 1/sqrt(E) factors to go into the phase space integral
     cpp1=sqrt((pp1(1)+xmn)/(2.0d0*pp1(1))) 
     cpp2=sqrt((pp2(1)+xmn)/(2.0d0*pp2(1)))
 !.....define sigma*p
