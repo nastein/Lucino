@@ -104,8 +104,7 @@ subroutine define_spinors()
 !.......initialize normalization factors
     cp1=sqrt((p1(1)+xmn)/(2.0d0*p1(1)))
     cp2=sqrt((p2(1)+xmn)/(2.0d0*p2(1)))
-    !Deleted these 1/sqrt(E) factors to go into the phase space integral
-    cpp1=sqrt((pp1(1)+xmn)/(2.0d0*pp1(1))) 
+    cpp1=sqrt((pp1(1)+xmn)/(2.0d0*pp1(1)))
     cpp2=sqrt((pp2(1)+xmn)/(2.0d0*pp2(1)))
 !.....define sigma*p
     do i=1,3
@@ -540,14 +539,14 @@ subroutine JDelta(janti)
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JDeltaFixed(j1212)
 
-    call had_current_init(p2_,p1_,pp1_,pp2_)
-    call JDeltaFixed(j2112)
+    !call had_current_init(p2_,p1_,pp1_,pp2_)
+    !call JDeltaFixed(j2112)
 
     call had_current_init(p1_,p2_,pp2_,pp1_)
     call JDeltaFixed(j1221)
 
-    call had_current_init(p2_,p1_,pp2_,pp1_)
-    call JDeltaFixed(j2121)
+    !call had_current_init(p2_,p1_,pp2_,pp1_)
+    !call JDeltaFixed(j2121)
 
     do ti1=1,2
         do ti2=1,2
@@ -666,14 +665,14 @@ subroutine JPi(janti)
     call had_current_init(p1_,p2_,pp1_,pp2_)
     call JPiFixed(j1212)
 
-    call had_current_init(p2_,p1_,pp1_,pp2_)
-    call JPiFixed(j2112)
+    !call had_current_init(p2_,p1_,pp1_,pp2_)
+    !call JPiFixed(j2112)
 
     call had_current_init(p1_,p2_,pp2_,pp1_)
     call JPiFixed(j1221)
 
-    call had_current_init(p2_,p1_,pp2_,pp1_)
-    call JPiFixed(j2121)
+    !call had_current_init(p2_,p1_,pp2_,pp1_)
+    !call JPiFixed(j2121)
 
     do ti1=1,2
         do ti2=1,2
@@ -703,6 +702,8 @@ subroutine lept_tens(lept)
    integer*4 :: i1,f1,i,j
    complex*16 :: J_mu(2,2,4),J_mu_dag(2,2,4)
    complex*16 :: lept(4,4)
+   complex*16 :: lept2(4,4)
+   complex*16 :: dotproduct
    if(ax.eq.0.0d0) then 
        do i1=1,2
           do f1=1,2
@@ -734,7 +735,20 @@ subroutine lept_tens(lept)
       enddo
    enddo
 
+   dotproduct = l(1)*lp(1) - l(2)*lp(2) - l(3)*lp(3) - l(4)*lp(4)
+
+   !lept2=czero
+   !do i=1,4
+   ! do j=1,4
+   !     lept2(i,j) = 2.0d0*(l(i)*lp(j) + lp(i)*l(j) - dotproduct*g_munu(i,j)) &
+   !     &   /(l(1)*lp(1))
+   ! enddo
+   !enddo
+
+
    lept = lept*2.0d0
+   !write(6,*)'lept = ', lept  
+   !write(6,*)'lept2 = ', lept2
  
   return
 end subroutine lept_tens
