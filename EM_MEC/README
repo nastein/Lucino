@@ -4,8 +4,8 @@ so dsig/dOmega is computed
 The code can be compiled using 'source compile_em.sh'
 It can then be run using mpirun -np 8 ./a.out < input_xsec_tot.in
 
-There are two version of the code the default and the ones ending in _an1. The difference is in how the energy conserving delta is solved
-The default is solved going to the CM frame, the _an1 is solved via a quadratic equation
+There are two version of the code the default and the ones ending in _altdelta. The difference is in how the energy conserving delta is solved
+The default is solved going to the CM frame, the _altdelta is solved via fixing the angle of the initial nucleon 2 
 
 input_tot_xsec.in is the input card which controls the number of events, beam energy, scattering angle, CC or EM events
 as well as whether you want to use a SF or FG, and things about the Delta propagator
