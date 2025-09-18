@@ -13,7 +13,7 @@ program ew_eventgen
    integer*4 :: nw,nZ,xA,i_fg,Deltapropfull,j,ilept,gen_events,num_events,nwlk,isospin
    integer*4 :: gen_events_perproc, ierr
    integer*4 :: local_trials, global_trials, local_events, global_events
-   real*8 :: wmax,enu,thetalept,xpf,Eshift,hw,sig,sig_err
+   real*8 :: wmax,enu,thetalept,xpf_p,xpf_n,Eshift,hw,sig,sig_err
    real*8 :: xmlept,start,finish,total_sig,total_sig_err
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
    integer*8 :: ran1,ran2,i,idx
@@ -42,7 +42,7 @@ program ew_eventgen
       read(5,*) enu 
       read(5,*) thetalept
       read(5,*) xsec_acc
-      read(5,*) xpf
+      read(5,*) xpf_p, xpf_n
       read(5,*) Eshift
       read(5,*) Deltapropfull
       read(5,*) nZ,xA
@@ -64,7 +64,7 @@ program ew_eventgen
          FG_string = 'SF'
       endif
 
-      write(fname,'(A,A,A,A,A,I0,A,A,A)') 'test2_',trim(int_string), &
+      write(fname,'(A,A,A,A,A,I0,A,A,A)') 'test_',trim(int_string), &
       &  '_',trim(FG_string),'_Ebeam_', int(enu),'_',trim(theta_str),'.out'
       if (myrank().eq.0) then
          print*, 'Output file: ', fname
@@ -85,7 +85,8 @@ program ew_eventgen
    call bcast(seeds(2))
    call bcast(xsec_acc)
    call bcast(ilept)
-   call bcast(xpf)
+   call bcast(xpf_p)
+   call bcast(xpf_n)
    call bcast(Eshift)
    call bcast(Deltapropfull)
    call bcast(nZ)
@@ -133,7 +134,7 @@ program ew_eventgen
 
    !Initialize spectral function and other necessary inputs
    call mc_init(gen_events_perproc,xsec_acc,i_fg,irn_int,irn_event, &
-         &  nwlk,xpf,Eshift,xmlept,xA,nZ,CC)
+         &  nwlk,xpf_p,xpf_n,Eshift,xmlept,xA,nZ,CC)
    num_events = 0
 
    if(myrank().eq.0) then

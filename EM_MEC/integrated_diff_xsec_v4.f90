@@ -1,5 +1,6 @@
 module mc_module
    use event_module
+   use two_nucleon_sf
    implicit none 
    integer*4, private, save :: xA,nZ,i_fg,np,ne,nwlk,gen_events,isospin
    complex*16, private, parameter :: czero = (0.0d0,0.0d0)
@@ -9,14 +10,15 @@ module mc_module
    complex*16, private, save :: it1(2),it2(2)
    integer*4, private, parameter :: nev=15000,neq=10000,nvoid=10,np0=40
    integer*4, private, parameter :: ntemp=1000
-   real*8, private, save ::  xpf,Eshift,xpmax
+   real*8, private, save ::  xpf_p,xpf_n,Eshift,xpmax
    real*8, private, save :: xsec_acc
    real*8, private, save:: norm,norm0,norm1
    real*8, private, save:: mlept
    real*8, private, save:: wmax,thetalept
    real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0,ppmax=1.0d0*1.e3
    real*8, private,parameter :: G_F = 1.1664e-11,cb=0.9741699d0,alpha=1.0d0/137.0d0
-   real*8, private, allocatable :: pv(:),p(:),dp(:,:),ep(:),dp1(:,:),dp0(:,:)
+   type(tn_sf_t), private :: dp
+   real*8, private :: norm_pp, norm_np, norm_pn, norm_nn
    real*8, private, allocatable :: kin(:),pot(:),pdel(:),pot_del(:)
    real*8, parameter :: mp=938.272d0,mn=939.565d0, &
       &  mu=931.494061d0,mpi=139.5d0
@@ -30,7 +32,7 @@ module mc_module
 contains
 
 subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
-      &  irn_event_in,nwlk_in,xpf_in,Eshift_in, &
+      &  irn_event_in,nwlk_in,xpf_p_in,xpf_n_in,Eshift_in, &
       &  mlept_in,xA_in,nZ_in,CC_in)
    use mathtool
    use event_module
@@ -40,7 +42,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    integer*8 :: irn_int_in(nwlk_in),irn_event_in(nwlk_in)
    integer*4 :: nZ_in,xA_in,i_fg_in,i,j,ne0,ien,nwlk_in
    integer*4 :: gen_events_in,ipot,isospin_in
-   real*8 :: xpf_in,mlept_in,hp,he,thetalept_in,dummy,xsec_acc_in
+   real*8 :: xpf_p_in,xpf_n_in,mlept_in,hp,he,thetalept_in,dummy,xsec_acc_in
    real*8 :: Eshift_in
    logical :: CC_in
    
@@ -48,7 +50,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    xsec_acc=xsec_acc_in
    nwlk=nwlk_in
    mlept=mlept_in
-   xpf=xpf_in
+   xpf_p=xpf_p_in
+   xpf_n=xpf_n_in
    Eshift=Eshift_in
    xA=xA_in
    nZ=nZ_in
@@ -88,67 +91,16 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    irn_int(:)=irn_int_in(:)
    irn_event(:) = irn_event_in(:)
 
-   if(i_fg.ne.1) then
-      open(unit=8,file='n2b_c12_new_fmt.dat',status='unknown',form='formatted')
-      read(8,*) np
-      allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
-      do i=1,np
-         do j=1,np
-           read(8,*) p(i),p(j),dp(i,j),dp1(i,j),dp0(i,j)
-           !print*,p(i),p(j),dp(i,j),dp1(i,j),dp0(i,j)
-         enddo  
-      enddo
-      close(8)
-      
-      p=p*hbarc
-      dp=dp/hbarc**6
-      dp1=dp1/hbarc**6
-      dp0=dp0/hbarc**6
-      dp=dp/(2.0d0*pi)**6
-      dp1=dp1/(2.0d0*pi)**6
-      dp0=dp0/(2.0d0*pi)**6
-   else 
-      np = 2*np0
-      allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
-      hp=xpf/dble(np)
-      do i=1,np
-         p(i)=dble(i-0.5d0)*hp 
-         do j=1,np
-            dp(i,j)=1.0d0
-            dp1(i,j)=1.0d0
-            dp0(i,j)=1.0d0
-         enddo
-      enddo
+   !New SF Class
+   call tn_sf_init(dp, i_fg, xpf_p, xpf_n, np0=np0, filename='n2b_c12_new_fmt.dat')
+   call tn_sf_norms(dp, norm_pp, norm_np, norm_pn, norm_nn)
+
+   if(myrank().eq.0) then 
+      write(6,*)'pp norm = ', norm_pp
+      write(6,*)'np norm = ', norm_np
+      write(6,*)'pn norm = ', norm_pn
+      write(6,*)'nn norm = ', norm_nn
    endif
-   
-
-   norm=0.0d0
-   norm1=0.0d0 
-   norm0=0.0d0 
-   
-   do i=1,np
-         do j=1,np
-         norm=norm+dp(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-         norm1=norm1+dp1(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-         norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-      enddo
-   enddo 
-   if(myrank().eq.0) write(6,*) 'norm tot = ', norm
-   dp=dp/norm*(4.0d0*pi*xpf**3/3.0d0)**2
-   dp1=dp1/norm1*(4.0d0*pi*xpf**3/3.0d0)**2
-   dp0=dp0/norm0*(4.0d0*pi*xpf**3/3.0d0)**2
-
-   norm=0.0d0
-   norm1=0.0d0 
-   norm0=0.0d0 
-   do i=1,np
-      do j=1,np
-         norm=norm+dp(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-         norm1=norm1+dp1(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-         norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-      enddo
-   enddo  
-   if(myrank().eq.0) write(6,*) 'norm tot =' , norm
 
 
    open(10, file='rho_1.dat')
@@ -324,12 +276,12 @@ end subroutine
 
 !Here we pick a random starting point for our MCMC
 subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
+   use two_nucleon_sf
    integer*4 :: i
-   !real*8,intent(in) :: nk(np,np),nk_norm
-   real*8 :: nk(np,np), nk_norm
    integer*4,intent(out) :: j1(nwlk),j2(nwlk),i1(nwlk),i2(nwlk),i1p(nwlk),i2p(nwlk)
    real*8,intent(out) :: w(nwlk),g(nwlk)
-   integer*4 :: isocomb(4,nwlk) 
+   integer*4 :: isocomb(4,nwlk)
+   real*8 :: p1,p2,nk,nk_norm
    
    do i=1,nwlk
       call setrn(irn_int(i))
@@ -345,13 +297,12 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
 
          w(i)=wmax*ran()
 
-         if(mod(i1(i)+i2(i),2).eq.0) then
-            call g_eval(p(j1(i)),p(j2(i)),dp1(j1(i),j2(i)), &
-               &  wmax,norm1,g(i))
-         else
-            call g_eval(p(j1(i)),p(j2(i)),dp0(j1(i),j2(i)), &
-               &  wmax,norm0,g(i))
-         endif
+         !Get isospin dependent momenta
+         call tn_sf_get_moms(dp,j1(i),j2(i),i1(i),i2(i),p1,p2)
+         !Get value of isospin dependent SF
+         call tn_sf_eval(dp,j1(i),j2(i),i1(i),i2(i),nk,nk_norm)
+
+         call g_eval(p1,p2,nk,wmax,nk_norm,g(i))
 
       enddo
       call getrn(irn_int(i))
@@ -360,13 +311,12 @@ end subroutine mc_random_startpoint
 
 !Here we take a random MCMC step
 subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc)
-   use mympi
+   use two_nucleon_sf
    integer*4 :: j1_n,j2_n,i1_n,i2_n,i1p_n,i2p_n
-   real*8 :: nk(np,np), nk_norm
    integer*4,intent(inout) :: i_acc
    integer*4,intent(inout) :: j1_o,j2_o,i1_o,i2_o,i1p_o,i2p_o
    integer*4 :: isocomb(4)
-   real*8 :: q2_n,w_n,g_n
+   real*8 :: q2_n,w_n,g_n,p1,p2,nk,nk_norm
    real*8,intent(inout) :: w_o,g_o
 
    j1_n=nint(j1_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
@@ -380,13 +330,13 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc)
       i1p_n = isocomb(3)
       i2p_n = isocomb(4)
 
-      if(mod(i1_n+i2_n,2).eq.0) then 
-         call g_eval(p(j1_n),p(j2_n),dp1(j1_n,j2_n), &
-         &  wmax,norm1,g_n)
-      else
-         call g_eval(p(j1_n),p(j2_n),dp0(j1_n,j2_n), &
-         &  wmax,norm0,g_n)
-      endif
+      !Get isospin dependent momenta
+      call tn_sf_get_moms(dp,j1_n,j2_n,i1_n,i2_n,p1,p2)
+      !Get value of isospin dependent SF
+      call tn_sf_eval(dp,j1_n,j2_n,i1_n,i2_n,nk,nk_norm)
+
+      call g_eval(p1,p2,nk,wmax,nk_norm,g_n)
+
    else
       g_n=0.0d0 
    endif
@@ -407,26 +357,26 @@ end subroutine mc_step
 !Here we compute the corresponding cross section and get the weight and add the event to the output
 !subroutine mc_calculate_xsec(Enu,j1,j2,q2,w,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
 subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
-   real*8 :: nk(np,np)
+   use two_nucleon_sf
    type(event_container_t), intent(inout) :: events
    type(event_t) :: event 
    logical :: eventgen
    integer*4,intent(in) :: j1,j2,i1,i2,i1p,i2p
    integer*4,intent(inout):: i_avg
-   !real*8,intent(in) :: q2,w,g,Enu
    real*8,intent(in) :: w,g,Enu
    real*8,intent(inout) :: max_weight,r_avg,r_err
-   real*8 :: ratio,f,r
+   real*8 :: ratio,f,r,p1,p2,nk,nk_norm,xpf1,xpf2
 
    call event_init(event,numPart=6)
 
-   if(mod(i1+i2,2).eq.0) then 
-      call f_eval(w,i1,i2,i1p,i2p,p(j1),p(j2),dp1(j1,j2),&
-      &  Enu,f,event)
-   else
-      call f_eval(w,i1,i2,i1p,i2p,p(j1),p(j2),dp0(j1,j2),&
-      &  Enu,f,event)
-   endif
+   !Get isospin dependent momenta
+   call tn_sf_get_moms(dp,j1,j2,i1,i2,p1,p2)
+   !Get value of isospin dependent SF
+   call tn_sf_eval(dp,j1,j2,i1,i2,nk,nk_norm)
+   !Get fermi momenta
+   call tn_sf_xpf(dp,i1,i2,xpf1,xpf2)
+
+   call f_eval(w,i1,i2,i1p,i2p,p1,p2,xpf1,xpf2,nk,Enu,f,event)
 
    !TODO remember where this 2pi came from! Azimuthal symmetry?
    !Aug 20 (Noah deleted f*2pi because we don't want to integrate over the azimuthal angle)
@@ -462,7 +412,7 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight
 end subroutine mc_calculate_xsec
 
 !Evaluate the cross section at fixed kinematics
-subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
+subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,xpf1,xpf2,np1,enu_v,f,my_event_in)
    use event_module
    use mathtool
    use mympi
@@ -470,9 +420,12 @@ subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    implicit none
    integer*4 :: fg,ip,il,i1,i2,i1p,i2p
    real*8 :: emu,w,pmu,cos_theta,sin_theta
+   real*8 :: xpf1,xpf2
    real*8 :: p2,ctp2,phip2,pj1,pj2,ctp1,phip1
    real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,qval,q2
    real*8 :: v_ll,v_t,sig0,sig 
+   real*8 :: Vcc,Vcl,Vll,Vt,Vl,Vlt,Vtt,Vct,Vclt,Rcc,Rcl,Rll,Rt,Rl,Rlt,Rtt,Rct,Rclt
+   real*8 :: lambda, deltasq, rho, tau, kappa, tan2tilde, nu0
    complex*16 :: r_now(4,4),lept_now(4,4),ampsq
    real*8 :: q(4),probeP4(4),outlepP4(4),nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
    type(event_t), intent(inout) :: my_event_in
@@ -501,6 +454,25 @@ subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    enu_vf=enu_v/hbarc
    tan2=(1.0d0-cos_theta)/(1.0d0+cos_theta)
 
+      lambda = w/(2.0d0*xmn)
+   kappa = qval/(2.0d0*xmn)
+   tau = kappa**2 - lambda**2
+   deltasq = mlept**2 / q2
+   rho = q2/qval**2
+   nu0 = 4.0d0*enu_v*emu - q2
+   tan2tilde = q2/nu0
+
+   Vcc = 1.0d0 
+   Vcl = lambda/kappa
+   Vll = Vcl**2
+   Vt = rho/2.0d0 + tan2tilde*(1.0d0 - 2.0d0*deltasq)
+   Vl = rho**2
+   Vtt = rho/2 - 2.0d0*deltasq*tan2tilde
+   Vct = sqrt(rho + tan2tilde)*sqrt(1.0d0 - 4.0d0*deltasq*tan2tilde/rho)
+   Vlt = lambda/kappa * Vct
+   Vclt = rho*Vct
+
+
    !.....compute sigma_mott [ fm^2 --> bb ]
    if(CC.eqv..true.) then
      sig0=1.e7*(G_F*cb)**2 /(4.0d0*pi**2)*pmu*emu/2.0d0 * hbarc**2
@@ -510,39 +482,40 @@ subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
       !If using response functions
       !sig0=alpha**2/2.0d0/(1.0d0-cos_theta)/eef**2/tan2
       !sig0=1.e9*sig0*10.0d0
+      !sig0=1.e7*hbarc**2 * alpha**2 /(q2**2) * pmu/enu_v * nu0
 
       !If doing contraction
       sig0=1.e7*hbarc**2 * alpha**2 * (emu**2) /q2**2 
    endif 
 
    !Fix lepton kinematics (choose x-z plane and q along z)
-   !probeP4(1) = enu_v
-   !probeP4(2) = enu_v*pmu*sin_theta/qval
-   !probeP4(3) = 0.0d0
-   !probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
-
-   !outlepP4(1) = emu 
-   !outlepP4(2) = enu_v*pmu*sin_theta/qval
-   !outlepP4(3) = 0.0d0
-   !outlepP4(4) = probeP4(4) - qval
-
-   !Changed so that neutrino is along z direction
    probeP4(1) = enu_v
-   probeP4(2) = 0.0d0
+   probeP4(2) = enu_v*pmu*sin_theta/qval
    probeP4(3) = 0.0d0
-   probeP4(4) = enu_v
+   probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
 
    outlepP4(1) = emu 
-   outlepP4(2) = pmu*sin_theta
+   outlepP4(2) = enu_v*pmu*sin_theta/qval
    outlepP4(3) = 0.0d0
-   outlepP4(4) = pmu*cos_theta
+   outlepP4(4) = probeP4(4) - qval
+
+   !Changed so that neutrino is along z direction
+   !probeP4(1) = enu_v
+   !probeP4(2) = 0.0d0
+   !probeP4(3) = 0.0d0
+   !probeP4(4) = enu_v
+
+   !outlepP4(1) = emu 
+   !outlepP4(2) = pmu*sin_theta
+   !outlepP4(3) = 0.0d0
+   !outlepP4(4) = pmu*cos_theta
 
    q=probeP4-outlepP4
 
    !Evaluate the hadronic tensor
    call int_eval(probeP4,outlepP4,pj2,ctp2,phip2, &
       &  pj1,ctp1,phip1,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
-      &  i1,i2,i1p,i2p)
+      &  i1,i2,i1p,i2p,xpf1,xpf2)
 
    !We sample 3 phi angles, and 3 cosines
    r_now=r_now*2.0d0**3*(2.0d0*pi)**3!
@@ -591,7 +564,7 @@ end subroutine f_eval
 
 subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
       &  phip1,w,q_4,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
-      &  i1,i2,i1p,i2p)
+      &  i1,i2,i1p,i2p,xpf1,xpf2)
    use dirac_matrices         
    use mathtool
    implicit none
@@ -600,7 +573,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
    real*8 :: w,p2,ctp2,phip2,p1,ctp1,phip1,stp1,stp2
    real*8 :: pp1,den,jac,arg,q(4)
-   real*8 :: q2,rho,norm,ca5,cv3,gep,np1
+   real*8 :: q2,rhop,rhon,rho,norm,ca5,cv3,gep,np1
    real*8 :: p1_4(4),p2_4(4),pp1_4(4),pp2_4(4),k2_4(4),k1_4(4),q_4(4),pp_4(4)
    real*8 :: k2e_4(4),k1e_4(4),kprobe_4(4),klept_4(4)
    real*8 :: pp1_4cm(4),pp2_4cm(4),phipp1_cm,ctpp1_cm
@@ -612,6 +585,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2
    real*8 :: nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
+   real*8 :: xpf1,xpf2
 
    !Get sin theta for initial state nucleons
    stp1=sqrt(1.0d0-ctp1**2)
@@ -683,12 +657,12 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    pp2_4(1) = sqrt(xmn**2 + sum(pp2_4(2:4)**2))
 
 !....Pauli blocking
-   if(sqrt(sum(pp1_4(2:4)**2)).lt.xpf) then   
+   if(sqrt(sum(pp1_4(2:4)**2)).lt.xpf1) then   
       r_now=czero
       return
    endif        
 
-   if(sqrt(sum(pp2_4(2:4)**2)).lt.xpf) then
+   if(sqrt(sum(pp2_4(2:4)**2)).lt.xpf2) then
       r_now=czero
       return
    endif
@@ -714,7 +688,9 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    gep=1.0d0/(1.0d0-q2/lsq)**2 
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
-   rho=xpf**3/(1.5d0*pi**2)
+   rhop=xpf_p**3/(3.0d0*pi**2)
+   rhon=xpf_n**3/(3.0d0*pi**2)
+   rho = rhop + rhon
 
    had=czero
    j_delta=czero

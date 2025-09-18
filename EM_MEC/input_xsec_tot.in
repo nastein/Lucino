@@ -1,13 +1,13 @@
-100000         #number of events to generate
+10000         #number of events to generate
 256  			#number of walkers
-1000. 				#enu
-31.79                #thetalept
+680. 				#enu
+60.0                #thetalept
 0.01d0              #total xsec accuracy
-225.0d0             # Fermi momentum
+225.0d0 225.0d0             #proton/neutron fermi momentum
 40.0    				#Eshift
 0                  #1 = Full Delta Prop, 0 = Real part Only
 6  12              # nZ, nA
 1     				# 1 if Global Fermi Gas 
-.true.             #CC = true, EM = false
+.false.             #CC = true, EM = false
 
 

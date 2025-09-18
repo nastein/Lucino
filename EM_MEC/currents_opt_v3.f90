@@ -104,8 +104,7 @@ subroutine define_spinors()
 !.......initialize normalization factors
     cp1=sqrt((p1(1)+xmn)/(2.0d0*p1(1)))
     cp2=sqrt((p2(1)+xmn)/(2.0d0*p2(1)))
-    !Deleted these 1/sqrt(E) factors to go into the phase space integral
-    cpp1=sqrt((pp1(1)+xmn)/(2.0d0)) 
+    cpp1=sqrt((pp1(1)+xmn)/(2.0d0))
     cpp2=sqrt((pp2(1)+xmn)/(2.0d0))
 !.....define sigma*p
     do i=1,3
