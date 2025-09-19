@@ -104,6 +104,7 @@ subroutine define_spinors()
 !.......initialize normalization factors
     cp1=sqrt((p1(1)+xmn)/(2.0d0*p1(1)))
     cp2=sqrt((p2(1)+xmn)/(2.0d0*p2(1)))
+    !These 1/E' factors go into the jacobian of the energy delta function
     cpp1=sqrt((pp1(1)+xmn)/(2.0d0))
     cpp2=sqrt((pp2(1)+xmn)/(2.0d0))
 !.....define sigma*p

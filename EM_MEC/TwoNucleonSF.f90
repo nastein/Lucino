@@ -9,7 +9,7 @@ module two_nucleon_sf
   ! Types
   !========================
   type tn_sf_t
-     integer :: np = 0
+     integer :: np = 80
      real(8) :: xpf_p = 0.0d0               ! Fermi momentum (same units as p)
      real(8) :: xpf_n = 0.0d0               ! Fermi momentum (same units as p)
      integer :: is_fg = 1                   ! 1 => build FG; 0 => read file
@@ -29,14 +29,14 @@ contains
   !========================
   ! Initialization
   !========================
-  subroutine tn_sf_init(sf, use_fg, xpf_p, xpf_n, np0, filename)
+  subroutine tn_sf_init(sf, use_fg, xpf_p, xpf_n, np, filename)
     type(tn_sf_t), intent(inout) :: sf
     integer,       intent(in)    :: use_fg
     real(8),       intent(in)    :: xpf_p, xpf_n
-    integer,       intent(in),   optional :: np0     ! required if use_fg
+    integer,       intent(out)   :: np     
     character(*),  intent(in),   optional :: filename ! required if .not. use_fg
 
-    integer :: i,j, np_file
+    integer :: i,j
     real(8) :: hp_p,hp_n
     real(8) :: dummy
     character(len=256) :: fname
@@ -51,10 +51,11 @@ contains
           write(*,*) 'tn_sf_init: ERROR: filename is required in file mode.'
           stop 1
        end if
+
        fname = filename
        open(unit=8, file=fname, status='old', form='formatted', action='read')
-       read(8,*) np_file
-       sf%np = np_file
+       read(8,*) np
+       sf%np = np
 
        allocate(sf%p_p(sf%np),sf%p_n(sf%np), &
        &  sf%dp_pp(sf%np,sf%np), sf%dp_np(sf%np,sf%np), &
@@ -71,7 +72,6 @@ contains
        end do
        close(8)
 
-       ! Unit conversions like your snippet:
        ! p <- p*hbarc ; dp <- dp / hbarc^6 / (2π)^6
        sf%p_p   = sf%p_p * hbarc
        sf%p_n   = sf%p_n * hbarc
@@ -91,16 +91,13 @@ contains
        sf%dp_n_step = sf%p_n(2) - sf%p_n(1)
 
     else
-       ! ---------- FERMI-GAS MODE ----------
-       if (.not. present(np0)) then
-          write(*,*) 'tn_sf_init: ERROR: np0 is required in FG mode.'
-          stop 1
-       end if
-       sf%np = 2*np0          ! keep your choice: denser grid than np0
-       
+       ! ---------- FERMI-GAS MODE ----------       
        allocate(sf%p_p(sf%np),sf%p_n(sf%np), &
        &  sf%dp_pp(sf%np,sf%np), sf%dp_np(sf%np,sf%np), &
        & sf%dp_pn(sf%np,sf%np), sf%dp_nn(sf%np,sf%np))
+
+       !Use default number of bins
+       np = sf%np
 
        hp_p = xpf_p / dble(sf%np)
        hp_n = xpf_n / dble(sf%np)

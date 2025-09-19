@@ -8,7 +8,7 @@ module mc_module
    complex*16, private, parameter :: ci    = (0.0d0,1.0d0)
    integer*4, private, save :: i_fsi,npot,np_del,pdg1_in,pdg2_in,pdg1_out,pdg2_out
    complex*16, private, save :: it1(2),it2(2)
-   integer*4, private, parameter :: nev=15000,neq=10000,nvoid=10,np0=40
+   integer*4, private, parameter :: nev=15000,neq=10000,nvoid=10
    integer*4, private, parameter :: ntemp=1000
    real*8, private, save ::  xpf_p,xpf_n,Eshift,xpmax
    real*8, private, save :: xsec_acc
@@ -94,7 +94,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    !New SF Class
    !dp contains the pp, np, pn, and nn SFs, 
    !i_fg controls if you use a FG or input SF
-   call tn_sf_init(dp, i_fg, xpf_p, xpf_n, np0=np0, filename='n2b_c12_new_fmt.dat')
+   call tn_sf_init(dp, i_fg, xpf_p, xpf_n, np, filename='n2b_c12_new_fmt.dat')
    call tn_sf_norms(dp, norm_pp, norm_np, norm_pn, norm_nn)
 
    if(myrank().eq.0) then 
@@ -114,6 +114,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    do i=1,np_del
       read(10,*) pdel(i),pot_del(i)
    enddo
+   close(10)
 
    
 end subroutine
@@ -134,7 +135,7 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
    integer*4 :: ie,ie0,iq,ien,iv,test_iavg
    integer*4 :: nsamples_tmp
 
-   real*8 :: emax,ee,nk(np,np),nk_norm
+   real*8 :: emax,ee
    real*8 :: Enu,qval,sig,thetalept_in
    real*8 :: pmu,costheta_p,res,q2_p,np1
    real*8 :: enu_max,henu,r_avg,r_err, test_xsec_tot, test_xsec_tot_err
@@ -286,7 +287,7 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
    integer*4,intent(out) :: j1(nwlk),j2(nwlk),i1(nwlk),i2(nwlk),i1p(nwlk),i2p(nwlk)
    real*8,intent(out) :: w(nwlk),g(nwlk)
    integer*4 :: isocomb(4,nwlk)
-   real*8 :: p1,p2,nk,nk_norm
+   real*8 :: p1(nwlk),p2(nwlk),nk,nk_norm
    
    do i=1,nwlk
       call setrn(irn_int(i))
@@ -302,12 +303,12 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
 
          w(i)=wmax*ran()
 
-         !Get isospin dependent momenta
-         call tn_sf_get_moms(dp,j1(i),j2(i),i1(i),i2(i),p1,p2)
-         !Get value of isospin dependent SF
+         !Get isospin dependent momenta p1,p2
+         call tn_sf_get_moms(dp,j1(i),j2(i),i1(i),i2(i),p1(i),p2(i))
+         !Get value of isospin dependent SF(p1,p2)
          call tn_sf_eval(dp,j1(i),j2(i),i1(i),i2(i),nk,nk_norm)
 
-         call g_eval(p1,p2,nk,wmax,nk_norm,g(i))
+         call g_eval(p1(i),p2(i),nk,wmax,nk_norm,g(i))
 
       enddo
       call getrn(irn_int(i))
@@ -426,7 +427,7 @@ subroutine f_eval(w,i1,i2,i1p,i2p,pj1,pj2,xpf1,xpf2,np1,enu_v,f,my_event_in)
    integer*4 :: fg,ip,il,i1,i2,i1p,i2p
    real*8 :: emu,w,pmu,cos_theta,sin_theta
    real*8 :: xpf1,xpf2
-   real*8 :: p2,ctp2,phip2,pj1,pj2,ctp1,phip1
+   real*8 :: pj2,ctp2,phip2,pj1,ctp1,phip1
    real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,qval,q2
    real*8 :: v_ll,v_t,sig0,sig 
    real*8 :: Vcc,Vcl,Vll,Vt,Vl,Vlt,Vtt,Vct,Vclt,Rcc,Rcl,Rll,Rt,Rl,Rlt,Rtt,Rct,Rclt
