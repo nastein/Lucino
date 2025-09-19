@@ -1,7 +1,7 @@
 module two_nucleon_sf
   implicit none
   private
-  public :: tn_sf_t, tn_sf_init, tn_sf_eval, tn_sf_norms, tn_sf_get_moms, tn_sf_xpf
+  public :: tn_sf_t, tn_sf_init, tn_sf_eval, tn_sf_norms, tn_sf_get_moms, tn_sf_xpf, tn_sf_FG_normalize
 
   real(8),parameter :: pi=acos(-1.0d0), hbarc=197.327053d0
 
@@ -37,9 +37,8 @@ contains
     character(*),  intent(in),   optional :: filename ! required if .not. use_fg
 
     integer :: i,j, np_file
-    real(8) :: hp_p,hp_n, norm, norm1, norm0
+    real(8) :: hp_p,hp_n
     real(8) :: dummy
-    real(8) :: pi
     character(len=256) :: fname
 
     sf%xpf_p  = xpf_p
@@ -63,10 +62,9 @@ contains
 
        do i=1,sf%np
           do j=1,sf%np
-             read(8,*) sf%p_p(i),dummy,dummy, &
-             & sf%dp_pp(i,j), sf%dp_np(i,j)
+             read(8,*) sf%p_p(i),sf%p_p(j),dummy,sf%dp_pp(i,j), sf%dp_np(i,j)
 
-             sf%dp_pn(i,j) =sf%dp_np(j,i)
+             sf%dp_pn(i,j) =sf%dp_np(i,j)
 
              sf%p_n(i)=sf%p_p(i)
           end do
@@ -87,6 +85,7 @@ contains
        sf%dp_pn = sf%dp_pn / (2.0d0*pi)**6
 
        sf%dp_nn = sf%dp_pp
+       sf%dp_pn = sf%dp_np
 
        sf%dp_p_step = sf%p_p(2) - sf%p_p(1)
        sf%dp_n_step = sf%p_n(2) - sf%p_n(1)
@@ -120,9 +119,6 @@ contains
           end do
        end do
     end if
-
-    ! ---------- Normalize ----------
-    call FG_normalize_all(sf)
 
   end subroutine tn_sf_init
 
@@ -206,7 +202,7 @@ contains
   !========================
   ! Internal: normalization (exactly your recipe)
   !========================
-  subroutine FG_normalize_all(sf)
+  subroutine tn_sf_FG_normalize(sf)
     type(tn_sf_t), intent(inout) :: sf
     real(8) :: norm_pp, norm_np, norm_pn, norm_nn
     real(8) :: V_p,V_n
@@ -223,7 +219,14 @@ contains
     sf%dp_pn = sf%dp_pn / norm_pn * V_p * V_n
     sf%dp_nn = sf%dp_nn / norm_nn * V_n * V_n
 
-  end subroutine FG_normalize_all
+    call compute_norms(sf, norm_pp, norm_np, norm_pn, norm_nn)
+
+    sf%norm_pp = norm_pp
+    sf%norm_nn = norm_nn
+    sf%norm_pn = norm_pn
+    sf%norm_np = norm_np
+
+  end subroutine tn_sf_FG_normalize
 
   !========================
   ! Internal: compute norms with weights

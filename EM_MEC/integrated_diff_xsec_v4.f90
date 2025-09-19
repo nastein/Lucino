@@ -92,6 +92,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    irn_event(:) = irn_event_in(:)
 
    !New SF Class
+   !dp contains the pp, np, pn, and nn SFs, 
+   !i_fg controls if you use a FG or input SF
    call tn_sf_init(dp, i_fg, xpf_p, xpf_n, np0=np0, filename='n2b_c12_new_fmt.dat')
    call tn_sf_norms(dp, norm_pp, norm_np, norm_pn, norm_nn)
 
@@ -100,7 +102,10 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
       write(6,*)'np norm = ', norm_np
       write(6,*)'pn norm = ', norm_pn
       write(6,*)'nn norm = ', norm_nn
-   endif
+   endif   
+
+   !Normalize SF to FG normalization
+   call tn_sf_FG_normalize(dp)
 
 
    open(10, file='rho_1.dat')
