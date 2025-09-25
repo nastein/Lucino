@@ -10,7 +10,8 @@ program ew_eventgen
    real*8, parameter :: xmd=1236.0d0,xmn=938.0d0,xmpi=139.d0,xmmu=105.658357
    real*8 :: progress,ti,tf, xsec_acc  
    integer :: clocks(2), count_rate, seeds(2)
-   integer*4 :: nw,nZ,xA,i_fg,Deltapropfull,j,ilept,gen_events,num_events,nwlk,isospin
+   integer*4 :: nw,nZ,xA,i_fg,j,ilept,gen_events,num_events,nwlk,isospin
+   integer*4 :: DeltaPropReal,DeltaProp3half
    integer*4 :: gen_events_perproc, ierr
    integer*4 :: local_trials, global_trials, local_events, global_events
    real*8 :: wmax,enu,thetalept,xpf_p,xpf_n,Eshift,hw,sig,sig_err
@@ -44,7 +45,8 @@ program ew_eventgen
       read(5,*) xsec_acc
       read(5,*) xpf_p, xpf_n
       read(5,*) Eshift
-      read(5,*) Deltapropfull
+      read(5,*) DeltaPropReal
+      read(5,*) DeltaProp3half
       read(5,*) nZ,xA
       read(5,*) i_fg
       read(5,*) CC
@@ -88,7 +90,8 @@ program ew_eventgen
    call bcast(xpf_p)
    call bcast(xpf_n)
    call bcast(Eshift)
-   call bcast(Deltapropfull)
+   call bcast(DeltaPropReal)
+   call bcast(DeltaProp3half)
    call bcast(nZ)
    call bcast(xA)
    call bcast(i_fg)
@@ -130,7 +133,7 @@ program ew_eventgen
    endif
 
    !Initialize currents module
-   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,Deltapropfull)
+   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,DeltaPropReal,DeltaProp3half)
 
    !Initialize spectral function and other necessary inputs
    call mc_init(gen_events_perproc,xsec_acc,i_fg,irn_int,irn_event, &

@@ -65,24 +65,23 @@ contains
           do j=1,sf%np
              read(8,*) sf%p_p(i),sf%p_p(j),dummy,sf%dp_pp(i,j), sf%dp_np(i,j)
 
-             sf%dp_pn(i,j) =sf%dp_np(i,j)
+             !sf%dp_pn(i,j) =sf%dp_np(i,j)
 
-             sf%p_n(i)=sf%p_p(i)
+             !sf%p_n(i)=sf%p_p(i)
           end do
        end do
        close(8)
 
+
        ! p <- p*hbarc ; dp <- dp / hbarc^6 / (2π)^6
        sf%p_p   = sf%p_p * hbarc
-       sf%p_n   = sf%p_n * hbarc
+       sf%p_n   = sf%p_p
 
        sf%dp_pp = sf%dp_pp / hbarc**6
        sf%dp_np = sf%dp_np / hbarc**6
-       sf%dp_pn = sf%dp_pn / hbarc**6
 
        sf%dp_pp = sf%dp_pp / (2.0d0*pi)**6
        sf%dp_np = sf%dp_np / (2.0d0*pi)**6
-       sf%dp_pn = sf%dp_pn / (2.0d0*pi)**6
 
        sf%dp_nn = sf%dp_pp
        sf%dp_pn = sf%dp_np
@@ -205,6 +204,7 @@ contains
     real(8) :: V_p,V_n
 
     call compute_norms(sf, norm_pp, norm_np, norm_pn, norm_nn)
+    write(6,*)'norms = ', norm_pp, norm_np
 
     ! Target normalization factors:
     !   multiply so that ∑ dp(i,j) p_i^2 p_j^2 (4πΔp)^2 = (4π xpf^3/3)^2 (and same for dp1, dp0)
@@ -217,6 +217,8 @@ contains
     sf%dp_nn = sf%dp_nn / norm_nn * V_n * V_n
 
     call compute_norms(sf, norm_pp, norm_np, norm_pn, norm_nn)
+
+    write(6,*)'new norms = ', norm_pp, norm_np
 
     sf%norm_pp = norm_pp
     sf%norm_nn = norm_nn

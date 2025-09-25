@@ -1,6 +1,6 @@
 module dirac_matrices
     implicit none
-    integer*4, private, save :: i_fl, pair_isospin,Deltapropfull
+    integer*4, private, save :: i_fl, pair_isospin,DeltapropReal,Deltaprop3half
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
@@ -30,11 +30,12 @@ module dirac_matrices
     real*8, private,save :: xmd,xmn,xmpi,w,xmlept1,xmlept2,ax
 contains
 
-subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in,xmlept2_in,CC_in,Deltapropfull_in)
+subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
+    &   xmlept2_in,CC_in,DeltapropReal_in,Deltaprop3half_in)
     use mympi
     use isospin_op
     implicit none
-    integer*4 :: i,Deltapropfull_in
+    integer*4 :: i,DeltapropReal_in,Deltaprop3half_in
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
     logical :: CC_in
 
@@ -43,7 +44,8 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in,xmlept2_in,CC_in,D
     xmpi=xmpi_in
     xmlept1 = xmlept1_in
     xmlept2 = xmlept2_in
-    Deltapropfull = Deltapropfull_in
+    DeltapropReal = DeltapropReal_in
+    Deltaprop3half = Deltaprop3half_in
 
     sig(:,:,:)=czero
     id(:,:)=czero
@@ -380,24 +382,50 @@ subroutine det_JaJb_JcJd()
       j_d_2(:,:,i)=k1(i)*id4(:,:)
       !!!...I AM USING THE FULL 
       do j=1,4
-         RSa(:,:,i,j)=matmul(pa_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pa(i)*pa(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pa(j)-gamma_mu(:,:,j)*pa(i))/3.0d0/xmd)
+        !Pure 3/2 propagator
+        if(Deltaprop3half.eq.1) then
+            RSa(:,:,i,j)=(pa(1)**2-pa2)/xmd**2*matmul(pa_sl(:,:)+xmd*id4(:,:), &
+        &   g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &   1.0d0/3.0d0/(pa(1)**2-pa2)*(matmul(pa_sl(:,:),gamma_mu(:,:,i)*pa(j)) &
+        &   +matmul(pa(i)*gamma_mu(:,:,j),pa_sl(:,:)))) 
+         
+            RSb(:,:,i,j)=(pb(1)**2-pb2)/xmd**2*matmul(pb_sl(:,:)+xmd*id4(:,:), &
+        &   g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &   1.0d0/3.0d0/(pb(1)**2-pb2)*(matmul(pb_sl(:,:),gamma_mu(:,:,i)*pb(j)) &
+        &   +matmul(pb(i)*gamma_mu(:,:,j),pb_sl(:,:)))) 
 
-         RSb(:,:,i,j)=matmul(pb_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pb(i)*pb(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pb(j)-gamma_mu(:,:,j)*pb(i))/3.0d0/xmd) 
-       
-         RSc(:,:,i,j)=matmul(pc_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pc(i)*pc(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pc(j)-gamma_mu(:,:,j)*pc(i))/3.0d0/xmd) 
-       
-         RSd(:,:,i,j)=matmul(pd_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pd(i)*pd(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pd(j)-gamma_mu(:,:,j)*pd(i))/3.0d0/xmd) 
+            RSc(:,:,i,j)=(pc(1)**2-pc2)/xmd**2*matmul(pc_sl(:,:)+xmd*id4(:,:), &
+        &   g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &   1.0d0/3.0d0/(pc(1)**2-pc2)*(matmul(pc_sl(:,:),gamma_mu(:,:,i)*pc(j))  &
+        &   +matmul(pc(i)*gamma_mu(:,:,j),pc_sl(:,:)))) 
 
+            RSd(:,:,i,j)=(pd(1)**2-pd2)/xmd**2*matmul(pd_sl(:,:)+xmd*id4(:,:), &
+        &   g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &   1.0d0/3.0d0/(pd(1)**2-pd2)*(matmul(pd_sl(:,:),gamma_mu(:,:,i)*pd(j)) &
+        &   +matmul(pc(i)*gamma_mu(:,:,j),pd_sl(:,:)))) 
 
-       if(Deltapropfull.eq.1) then
+        !3/2 + 1/2 propagator (contains spurious contributions)
+        else
+             RSa(:,:,i,j)=matmul(pa_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &    2.0d0*pa(i)*pa(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pa(j)-gamma_mu(:,:,j)*pa(i))/3.0d0/xmd)
+
+             RSb(:,:,i,j)=matmul(pb_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &    2.0d0*pb(i)*pb(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pb(j)-gamma_mu(:,:,j)*pb(i))/3.0d0/xmd) 
+           
+             RSc(:,:,i,j)=matmul(pc_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &    2.0d0*pc(i)*pc(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pc(j)-gamma_mu(:,:,j)*pc(i))/3.0d0/xmd) 
+           
+             RSd(:,:,i,j)=matmul(pd_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &    2.0d0*pd(i)*pd(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pd(j)-gamma_mu(:,:,j)*pd(i))/3.0d0/xmd) 
+        endif
+
+        !Full propagator
+       if(DeltapropReal.eq.0) then
         RSa(:,:,i,j) = RSa(:,:,i,j)*(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
         RSb(:,:,i,j) = RSb(:,:,i,j)*(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
         RSc(:,:,i,j) = RSc(:,:,i,j)*(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
         RSd(:,:,i,j) = RSd(:,:,i,j)*(1.0d0/(pd(1)**2-sum(pd(2:4)**2)-xmd_d**2))
+        !Real part of propagator only
        else
         RSa(:,:,i,j) = RSa(:,:,i,j)*(pa(1)**2-sum(pa(2:4)**2)-xmd**2)/((pa(1)**2-sum(pa(2:4)**2)-xmd**2)**2+xmd**2*ga**2)
         RSb(:,:,i,j) = RSb(:,:,i,j)*(pb(1)**2-sum(pb(2:4)**2)-xmd**2)/((pb(1)**2-sum(pb(2:4)**2)-xmd**2)**2+xmd**2*gb**2)
