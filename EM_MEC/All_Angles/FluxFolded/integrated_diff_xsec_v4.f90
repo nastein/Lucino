@@ -255,10 +255,10 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
             w2mean = xsec_sqsum_tmp / dble(nsamples_tmp)
             xsec_err_tmp = sqrt((w2mean - wmean**2) / dble(nsamples_tmp))
 
-            write(6,'(A,F12.6,A,F12.6,A)', advance='no') &
+            write(6,'(A,ES24.16,A,F12.6,A)', advance='no') &
             &  achar(13)//'xsec = ', wmean, ', err = ', 100.0d0*xsec_err_tmp/wmean, '%'
             call flush(6)   
-            if(100.0d0*xsec_err_tmp/wmean.lt.1.0d0) then 
+            if(100.0d0*xsec_err_tmp/wmean.lt.0.5d0) then 
                converged = .true.
             endif
          endif
@@ -299,7 +299,7 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
    call maxallr1(maximum_weight,global_max_weight)
    if(myrank().eq.0) print*,'global max weight = ', global_max_weight
    !Safety factor
-   maximum_weight = global_max_weight*1.5d0
+   maximum_weight = global_max_weight*1.8d0
    if(myrank().eq.0) print*,'reweighted global max weight = ', maximum_weight
    my_events%max_weight = maximum_weight
    call MPI_Barrier(mpi_comm_world,ierror)
@@ -608,7 +608,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    use mathtool
    implicit none
    integer*4 :: i,j,i1,i2,i1p,i2p
-   real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6
+   real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6,xmad=950.0d0
    real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
    real*8 :: w,p2,ctp2,phip2,p1,ctp1,phip1,stp1,stp2
    real*8 :: pp1,den,jac,arg,q(4)
@@ -725,7 +725,8 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    !q2=w**2 - qval**2
    gep=1.0d0/(1.0d0-q2/lsq)**2 
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
-   ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   ca5=1.18/(1.0d0-q2/xmad**2)**2 !....New axial form factor
    rho=xpf**3/(1.5d0*pi**2)
 
    had=czero
