@@ -251,7 +251,7 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
             write(6,'(A,ES24.16,A,F12.6,A)', advance='no') &
             &  achar(13)//'xsec = ', wmean, ', err = ', 100.0d0*xsec_err_tmp/wmean, '%'
             call flush(6)   
-            if(100.0d0*xsec_err_tmp/wmean.lt.1.0d0) then 
+            if(100.0d0*xsec_err_tmp/wmean.lt.0.5d0) then 
                converged = .true.
             endif
          endif
@@ -291,7 +291,7 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
    call maxallr1(maximum_weight,global_max_weight)
    if(myrank().eq.0) print*,'global max weight = ', global_max_weight
    !Safety factor
-   maximum_weight = global_max_weight*1.5d0
+   maximum_weight = global_max_weight*1.7d0
    if(myrank().eq.0) print*,'reweighted global max weight = ', maximum_weight
    my_events%max_weight = maximum_weight
    call MPI_Barrier(mpi_comm_world,ierror)
@@ -581,11 +581,12 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    use mathtool
    implicit none
    integer*4 :: i,j,i1,i2,i1p,i2p
-   real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6
+   real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6,xmad=950.0d0
    real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
    real*8 :: w,p2,ctp2,phip2,p1,ctp1,phip1,stp1,stp2
    real*8 :: pp1,den,jac,arg,q(4)
-   real*8 :: q2,rho,norm,ca5,cv3,gep,np1
+   real*8 :: q2,rho,norm,gep,np1
+   real*8 :: ca4,ca5,ca6,cv3,cv4,cv5,cV(3),cA(3)
    real*8 :: p1_4(4),p2_4(4),pp1_4(4),pp2_4(4),k2_4(4),k1_4(4),q_4(4),pp_4(4)
    real*8 :: k2e_4(4),k1e_4(4),kprobe_4(4),klept_4(4)
    real*8 :: pp1_4cm(4),pp2_4cm(4),phipp1_cm,ctpp1_cm
@@ -699,8 +700,17 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    !q2=w**2 - qval**2
    gep=1.0d0/(1.0d0-q2/lsq)**2 
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
-   ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
-   !ca5=0.0d0
+   cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
+   cv5=0.48d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/(0.776d0*lsq))*sqrt(3.0d0/2.0d0)
+   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
+   ca4=-ca5/4.0d0
+   ca6=ca5*xmn**2 /(mpi**2 - q2)
+  
+
+   cV=(/cv3,cv4,cv5/)
+   cA=(/ca4,ca5,ca6/)
+
    rho=xpf**3/(1.5d0*pi**2)
 
    had=czero
@@ -709,7 +719,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    j_tot=czero
 
    !Pass momenta and form factors to currents module
-   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cv3,ca5,np_del,pdel,pot_del)
+   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cV,cA,np_del,pdel,pot_del)
    call define_lept_spinors() 
    call JDelta(j_delta)
    call JPi(j_pi)
@@ -731,6 +741,9 @@ subroutine g_eval(pj1,pj2,gPkE,wmax,q2max,q2min,gnorm,g)
    real*8 ::pj1,pj2,gPkE,wmax,g,gnorm,q2max,q2min,q2range
    g=(4.0d0*pi)**2*pj1**2*pj2**2*gPkE
    !g=g/q2max/wmax/norm
+
+   !write(6,*)'q2max = ', q2max  
+   !write(6,*)'q2min = ', q2min
    q2range = q2max-q2min
    g=g/gnorm/wmax/q2range/iso_configs !Dividing by the number of isospin configurations consistent with charge conservation
     

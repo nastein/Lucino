@@ -625,10 +625,11 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    implicit none
    integer*4 :: i,j,i1,i2,i1p,i2p
    real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6,xmad=950.0d0
-   real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
+   real*8, parameter :: fstar=2.15d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
    real*8 :: w,p2,ctp2,phip2,p1,ctp1,phip1,stp1,stp2
    real*8 :: pp1,den,jac,arg,q(4)
-   real*8 :: q2,rhop,rhon,rho,norm,ca5,cv3,gep,np1
+   real*8 :: q2,rhop,rhon,rho,norm,gep,np1
+   real*8 :: ca4,ca5,ca6,cv3,cv4,cv5,cV(3),cA(3)
    real*8 :: p1_4(4),p2_4(4),pp1_4(4),pp2_4(4),k2_4(4),k1_4(4),q_4(4),pp_4(4)
    real*8 :: k2e_4(4),k1e_4(4),kprobe_4(4),klept_4(4)
    real*8 :: pp1_4cm(4),pp2_4cm(4),phipp1_cm,ctpp1_cm
@@ -739,11 +740,19 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    nuc2P4 = p2_4 
    nuc2PP4 = pp2_4
    !......define constants and ff
-   !q2=w**2 - qval**2
+   q2=w**2 - sum(q_4(2:4)**2)
    gep=1.0d0/(1.0d0-q2/lsq)**2 
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
-   ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
-   !ca5=1.18/(1.0d0-q2/xmad**2)**2 !....New axial form factor
+   cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
+   cv5=0.48d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/(0.776d0*lsq))*sqrt(3.0d0/2.0d0)
+   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
+   ca4=-ca5/4.0d0
+   ca6=ca5*xmn**2 /(mpi**2 - q2)
+  
+   cV=(/cv3,cv4,cv5/)
+   cA=(/ca4,ca5,ca6/)
+
    rhop=xpf_p**3/(3.0d0*pi**2)
    rhon=xpf_n**3/(3.0d0*pi**2)
    rho = rhop + rhon
@@ -754,7 +763,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    j_tot=czero
 
    !Pass momenta and form factors to currents module
-   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cv3,ca5,np_del,pdel,pot_del)
+   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cV,cA,np_del,pdel,pot_del)
    call define_lept_spinors() 
    call JDelta(j_delta)
    call JPi(j_pi)
