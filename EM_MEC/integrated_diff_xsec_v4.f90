@@ -56,7 +56,6 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    i_fg=i_fg_in
    CC=CC_in
 
-   
    if(CC.eqv..true.) then
       if(myrank().eq.0) then
          write(6,*)'Computing Charged Current cross section' 
@@ -88,7 +87,6 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    allocate(irn_int(nwlk),irn_event(nwlk))
    irn_int(:)=irn_int_in(:)
    irn_event(:) = irn_event_in(:)
-
 
    if(i_fg.ne.1) then
       open(unit=8,file='n2b_c12_new_fmt.dat',status='unknown',form='formatted')
@@ -134,7 +132,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
          norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
       enddo
    enddo 
-   if(myrank().eq.0) write(6,*) 'norm tot = ', norm
+   if(myrank().eq.0) write(6,*) 'norm1 tot = ', norm1
+   if(myrank().eq.0) write(6,*) 'norm0 tot = ', norm0
    dp=dp/norm*(4.0d0*pi*xpf_p**3/3.0d0)**2
    dp1=dp1/norm1*(4.0d0*pi*xpf_p**3/3.0d0)**2
    dp0=dp0/norm0*(4.0d0*pi*xpf_p**3/3.0d0)**2
@@ -149,7 +148,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
          norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
       enddo
    enddo  
-   if(myrank().eq.0) write(6,*) 'norm tot =' , norm
+   if(myrank().eq.0) write(6,*) 'norm1 tot =' , norm1
+   if(myrank().eq.0) write(6,*) 'norm1 tot =' , norm0
 
 
    open(10, file='rho_1.dat')
@@ -223,7 +223,6 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
    iv=1
 
    call MPI_Barrier(mpi_comm_world,ierror)
-
    
    !Compute total cross section to necessary precision
    do while (converged.eqv..false.)
@@ -344,11 +343,6 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
          i1p(i) = isocomb(3,i)
          i2p(i) = isocomb(4,i)
 
-         !write(6,*)'i1 = ', i1(i)  
-         !write(6,*)'i2 = ', i2(i)  
-         !write(6,*)'i1p = ', i1p(i)   
-         !write(6,*)'i2p = ', i2p(i)  
-
          w(i)=wmax*ran()
 
          if(mod(i1(i)+i2(i),2).eq.0) then
@@ -411,7 +405,6 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc)
 end subroutine mc_step
 
 !Here we compute the corresponding cross section and get the weight and add the event to the output
-!subroutine mc_calculate_xsec(Enu,j1,j2,q2,w,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
 subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
    real*8 :: nk(np,np)
    type(event_container_t), intent(inout) :: events
