@@ -1,6 +1,6 @@
 module dirac_matrices
     implicit none
-    integer*4, private, save :: i_fl, pair_isospin,DeltapropReal,Deltaprop3half
+    integer*4, private, save :: i_fl, pair_isospin,DeltapropFull,Deltaprop3half
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
@@ -31,11 +31,11 @@ module dirac_matrices
 contains
 
 subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
-    &   xmlept2_in,CC_in,DeltapropReal_in,Deltaprop3half_in)
+    &   xmlept2_in,CC_in,DeltapropFull_in,Deltaprop3half_in)
     use mympi
     use isospin_op
     implicit none
-    integer*4 :: i,DeltapropReal_in,Deltaprop3half_in
+    integer*4 :: i,DeltapropFull_in,Deltaprop3half_in
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
     logical :: CC_in
 
@@ -44,7 +44,7 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
     xmpi=xmpi_in
     xmlept1 = xmlept1_in
     xmlept2 = xmlept2_in
-    DeltapropReal = DeltapropReal_in
+    DeltapropFull = DeltapropFull_in
     Deltaprop3half = Deltaprop3half_in
 
     sig(:,:,:)=czero
@@ -423,7 +423,7 @@ subroutine det_JaJb_JcJd()
         endif
 
         !Full propagator
-       if(DeltapropReal.eq.0) then
+       if(DeltapropFull.eq.1) then
         RSa(:,:,i,j) = RSa(:,:,i,j)*(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
         RSb(:,:,i,j) = RSb(:,:,i,j)*(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
         RSc(:,:,i,j) = RSc(:,:,i,j)*(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
