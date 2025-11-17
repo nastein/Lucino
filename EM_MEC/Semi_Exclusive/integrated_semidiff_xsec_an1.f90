@@ -70,11 +70,13 @@ subroutine mc_init(gen_events_in,i_fg_in,irn_int_in, &
          write(6,*)'Computing EM Current cross section'
       endif
       !Enumerate all initial/final isospins
-      iso_configs = 3
-      allocate(allowed_isocomb(3,4))
+      iso_configs = 5
+      allocate(allowed_isocomb(5,4))
       allowed_isocomb(1,:) = [1,2,1,2]
       allowed_isocomb(2,:) = [1,1,1,1]
       allowed_isocomb(3,:) = [2,1,1,2]
+      allowed_isocomb(4,:) = [2,1,2,1]
+      allowed_isocomb(5,:) = [1,2,2,1]
    endif
 
    xmn = (mn + mp)/2.0d0
@@ -118,7 +120,6 @@ subroutine mc_init(gen_events_in,i_fg_in,irn_int_in, &
       enddo
    endif
    
-
    norm=0.0d0
    norm1=0.0d0 
    norm0=0.0d0 
@@ -241,7 +242,7 @@ subroutine mc_eval(Enu, qval_in, thetaprot_in, phiprot_in, w_in, xsec_tot, xsec_
             write(6,'("xsec = ",ES24.16,", err = ",F12.6,"%")') &
             &  wmean, 100.0d0*xsec_err_tmp/wmean
 
-            if(100.0d0*xsec_err_tmp/wmean.lt.0.4d0) then 
+            if(100.0d0*xsec_err_tmp/wmean.lt.0.1d0) then 
                converged = .true.
             endif
          endif
@@ -423,6 +424,7 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,g,i_avg,events,max_weight,r
       if(eventgen.eqv..true.) then
          print*,'w_i(',f,') > w_max(',max_weight,'). This should never happen!'
          call print_event(event,6)
+         stop
       endif 
       !Handle negative weights
       max_weight = ABS(f) 
@@ -512,12 +514,12 @@ subroutine f_eval(i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    else
       !.....compute sigma_mott [ fm^2 --> mb --> nb ]
       !If using response functions
-      sig0=1.e7*hbarc**2 * alpha**2 /(q2**2) * pmu/enu_v * nu0
+      !sig0=1.e7*hbarc**2 * alpha**2 /(q2**2) * pmu/enu_v * nu0
       !sig0=alpha**2/2.0d0/(1.0d0-cos_theta)/eef**2/tan2
       !sig0=1.e9*sig0*10.0d0
 
       !If doing contraction
-      !sig0=1.e7*hbarc**2 * alpha**2 * (emu**2) /q2**2 
+      sig0=1.e7*hbarc**2 * alpha**2 * (emu**2) /q2**2 
    endif 
 
    !Fix lepton kinematics (choose x-z plane and q along z)
@@ -565,10 +567,10 @@ subroutine f_eval(i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    !Initializes lepton spinors
    call lept_tens(lept_now)
 
-   !call contract(r_now,lept_now,ampsq)
+   call contract(r_now,lept_now,ampsq)
 
-   !sig=sig0*(real(ampsq))
-   sig=sig0*real(Vcc*Rcc - 2.0d0*Vcl*Rcl +Vll*Rll + Vt*Rt + Vtt*Rtt)
+   sig=sig0*(real(ampsq))
+   !sig=sig0*real(Vcc*Rcc - 2.0d0*Vcl*Rcl +Vll*Rll + Vt*Rt + Vtt*Rtt)
    f=sig
 
    my_particles(1)%p4 = probeP4   
@@ -602,11 +604,12 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    use mathtool
    implicit none
    integer*4 :: i,j,i1,i2,i1p,i2p
-   real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6
+   real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6,xmad=950.0d0
    real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
    real*8 :: phipp1,ctpp1,stpp1,p2,ctp2,phip2,p1,ctp1,phip1,stp1,stp2
    real*8 :: pp1,den,jac,q(4)
-   real*8 :: q2,rho,norm,ca5,cv3,gep,np1
+   real*8 :: q2,rho,norm,gep,np1
+   real*8 :: ca4,ca5,ca6,cv3,cv4,cv5,cV(3),cA(3)
    real*8 :: at,vt,bt,arg,par1,par2
    real*8 :: p1_4(4),p2_4(4),pp1_4(4),pp2_4(4),k2_4(4),k1_4(4),q_4(4),pp_4(4)
    real*8 :: k2e_4(4),k1e_4(4),kprobe_4(4),klept_4(4)
@@ -700,7 +703,9 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    !Now I'm integrating over only 2 angles so my dOmega = 4*pi
 
    !Define energy transfer for currents
-   !q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
+   if(i_fg.eq.0) then
+      q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
+   endif
    if(q_4(1).lt.0.0d0) then
      r_now=czero
      return
@@ -718,7 +723,16 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    !q2=w**2 - qval**2
    gep=1.0d0/(1.0d0-q2/lsq)**2 
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
-   ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
+   cv5=0.48d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/(0.776d0*lsq))*sqrt(3.0d0/2.0d0)
+   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
+   ca4=-ca5/4.0d0
+   ca6=ca5*xmn**2 /(mpi**2 - q2)
+  
+   cV=(/cv3,cv4,cv5/)
+   cA=(/ca4,ca5,ca6/)
+
    rho=xpf**3/(1.5d0*pi**2)
 
    had=czero
@@ -727,12 +741,15 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    j_tot=czero
 
    !Pass momenta and form factors to currents module
-   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cv3,ca5,np_del,pdel,pot_del)
+   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cV,cA,np_del,pdel,pot_del)
    call define_lept_spinors() 
    call JDelta(j_delta)
    call JPi(j_pi)
 
    j_tot = j_delta + j_pi
+
+   !Apply current conservation j_z = j0*w/q
+   j_tot(:,:,:,:,:,:,:,:,4) = j_tot(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
 
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)

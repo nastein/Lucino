@@ -1,6 +1,6 @@
 module dirac_matrices
     implicit none
-    integer*4, private, save :: i_fl,Deltapropfull,Deltapot
+    integer*4, private, save :: i_fl,DeltapropFull,Deltaprop3half
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
@@ -8,7 +8,7 @@ module dirac_matrices
     real*8, private, parameter :: pi=acos(-1.0d0)    
     real*8, private, parameter :: fgnd=5.0d0,fpind=0.54d0
     real*8, private, parameter :: fstar=2.13d0, xmrho=775.8d0,ga=1.26d0,fpinn2=1.0094d0! 2.14/2.13 from JUAN, !=0.08*4.0d0*pi ARTURO
-    real*8, private, save :: cv3,ca5,gep
+    real*8, private, save :: cV(3),cA(3),gep
     real*8, private, allocatable :: pdel(:),pot_del(:)
     real*8, private, parameter :: lpi=1300.0d0,lpind=1150.0d0
     real*8, private, save :: mqe, qval
@@ -30,11 +30,11 @@ module dirac_matrices
     real*8, private,save :: xmd,xmn,xmpi,w,xmlept1,xmlept2,ax
 contains
 
-subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in,xmlept2_in,CC_in,Deltapropfull_in,Deltapot_in)
+subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in,xmlept2_in,CC_in,DeltaPropFull_in,Deltaprop3half_in)
     use mympi
     use isospin_op
     implicit none
-    integer*4 :: i,Deltapropfull_in,Deltapot_in
+    integer*4 :: i,DeltaPropFull_in,Deltaprop3half_in
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
     logical :: CC_in
 
@@ -43,8 +43,8 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in,xmlept2_in,CC_in,D
     xmpi=xmpi_in
     xmlept1 = xmlept1_in
     xmlept2 = xmlept2_in
-    Deltapropfull = Deltapropfull_in
-    Deltapot = Deltapot_in
+    DeltaPropFull = DeltaPropFull_in
+    Deltaprop3half = Deltaprop3half_in
 
     sig(:,:,:)=czero
     id(:,:)=czero
@@ -213,13 +213,13 @@ subroutine define_lept_spinors()
 end subroutine
 
 subroutine current_init(lepi_in,lepf_in,p1_in,p2_in,pp1_in,pp2_in,&
-    &   q_in,w_in,gep_in,cv3_in,ca5_in,np_del_in,pdel_in,pot_del_in)
+    &   q_in,w_in,gep_in,cV_in,cA_in,np_del_in,pdel_in,pot_del_in)
     implicit none
     integer*4 :: i,i_fl_in,iso_in,np_del_in
     real*8 :: p1_in(4),p2_in(4),pp1_in(4),pp2_in(4),q_in(4),k1_in(4),k2_in(4),w_in
     complex*16 :: t1_in(2),t2_in(2)
     real*8 :: lepi_in(4),lepf_in(4),gep_in,pdel_in(np_del_in),pot_del_in(np_del_in)
-    real*8 :: cv3_in, ca5_in
+    real*8 :: cV_in(3), cA_in(3)
     !Keep permanent copies of the momenta
     l=lepi_in
     lp=lepf_in
@@ -230,8 +230,8 @@ subroutine current_init(lepi_in,lepf_in,p1_in,p2_in,pp1_in,pp2_in,&
     q=q_in
     w=w_in
     gep=gep_in
-    cv3=cv3_in
-    ca5=ca5_in
+    cV=cV_in
+    cA=cA_in
     np_del=np_del_in
 
     q_sl=czero
@@ -300,7 +300,7 @@ subroutine det_Jpi()
         & - 1.0d0/(k1sq-xmpi**2)/(lpi**2-k1sq) &
         & - 1.0d0/(k2sq-xmpi**2)/(lpi**2-k2sq))
    do mu=1,4
-      J_pif(:,:,mu)=gep*(k1(mu)-k2(mu))*Pi_k1(:,:)!*fact
+      J_pif(:,:,mu)=gep*(k1(mu)-k2(mu))*Pi_k1(:,:)*fact
       J_sea1(:,:,mu)=-gep*gamma_5mu(:,:,mu)-ax*frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
       J_sea2(:,:,mu)=gep*gamma_5mu(:,:,mu)+ax*frho2/ga*gamma_mu(:,:,mu)!/fpik1**2
       J_pl1(:,:,mu)=frho1/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
@@ -320,12 +320,15 @@ subroutine det_JaJb_JcJd()
     implicit none
     integer*4 :: i,j,mu
     real*8 :: pa(4),pb(4),pc(4),pd(4),width,fpik1,fpik2,fpindk2,fpindk1
+    real*8 :: cV(3),cA(3)
     real*8 :: ga,gb,gc,gd,pa2,pb2,pc2,pd2
     real*8 :: pot_pa,pot_pb,pot_pc,pot_pd,e_gs,e_bg
     complex*16 :: pa_sl(4,4),pb_sl(4,4),pc_sl(4,4),pd_sl(4,4)
     complex*16 :: xmd_a,xmd_b,xmd_c,xmd_d
     complex*16 :: j_a_1(4,4,4),j_a_2(4,4,4,4),RSa(4,4,4,4),RSb(4,4,4,4),j_b_1(4,4,4,4),j_b_2(4,4,4)
     complex*16 :: j_c_1(4,4,4),j_c_2(4,4,4,4),RSc(4,4,4,4),RSd(4,4,4,4),j_d_1(4,4,4,4),j_d_2(4,4,4)
+    complex*16 :: j_a_2_V(4,4,4,4),j_a_2_A(4,4,4,4),j_c_2_V(4,4,4,4),j_c_2_A(4,4,4,4)
+    complex*16 :: j_b_1_V(4,4,4,4),j_b_1_A(4,4,4,4),j_d_1_V(4,4,4,4),j_d_1_A(4,4,4,4)
     complex*16 :: J_a(4,4,4),J_b(4,4,4),J_c(4,4,4),J_d(4,4,4)
   
     !pa(1)=(e_gs-e_bg)*0.5d0+xmn+q(1)
@@ -380,24 +383,50 @@ subroutine det_JaJb_JcJd()
       j_d_2(:,:,i)=k1(i)*id4(:,:)
       !!!...I AM USING THE FULL 
       do j=1,4
-         RSa(:,:,i,j)=matmul(pa_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pa(i)*pa(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pa(j)-gamma_mu(:,:,j)*pa(i))/3.0d0/xmd)
+        !Pure 3/2 propagator
+        if(Deltaprop3half.eq.1) then
+            RSa(:,:,i,j)=(pa(1)**2-pa2)/xmd**2*matmul(pa_sl(:,:)+xmd*id4(:,:), &
+        &   g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &   1.0d0/3.0d0/(pa(1)**2-pa2)*(matmul(pa_sl(:,:),gamma_mu(:,:,i)*pa(j)) &
+        &   +matmul(pa(i)*gamma_mu(:,:,j),pa_sl(:,:)))) 
+         
+            RSb(:,:,i,j)=(pb(1)**2-pb2)/xmd**2*matmul(pb_sl(:,:)+xmd*id4(:,:), &
+        &   g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &   1.0d0/3.0d0/(pb(1)**2-pb2)*(matmul(pb_sl(:,:),gamma_mu(:,:,i)*pb(j)) &
+        &   +matmul(pb(i)*gamma_mu(:,:,j),pb_sl(:,:)))) 
 
-         RSb(:,:,i,j)=matmul(pb_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pb(i)*pb(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pb(j)-gamma_mu(:,:,j)*pb(i))/3.0d0/xmd) 
-       
-         RSc(:,:,i,j)=matmul(pc_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pc(i)*pc(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pc(j)-gamma_mu(:,:,j)*pc(i))/3.0d0/xmd) 
-       
-         RSd(:,:,i,j)=matmul(pd_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
-    &    2.0d0*pd(i)*pd(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pd(j)-gamma_mu(:,:,j)*pd(i))/3.0d0/xmd) 
+            RSc(:,:,i,j)=(pc(1)**2-pc2)/xmd**2*matmul(pc_sl(:,:)+xmd*id4(:,:), &
+        &   g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &   1.0d0/3.0d0/(pc(1)**2-pc2)*(matmul(pc_sl(:,:),gamma_mu(:,:,i)*pc(j))  &
+        &   +matmul(pc(i)*gamma_mu(:,:,j),pc_sl(:,:)))) 
 
+            RSd(:,:,i,j)=(pd(1)**2-pd2)/xmd**2*matmul(pd_sl(:,:)+xmd*id4(:,:), &
+        &   g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &   1.0d0/3.0d0/(pd(1)**2-pd2)*(matmul(pd_sl(:,:),gamma_mu(:,:,i)*pd(j)) &
+        &   +matmul(pc(i)*gamma_mu(:,:,j),pd_sl(:,:)))) 
 
-       if(Deltapropfull.eq.1) then
+        !3/2 + 1/2 propagator (contains spurious contributions)
+        else
+             RSa(:,:,i,j)=matmul(pa_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &    2.0d0*pa(i)*pa(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pa(j)-gamma_mu(:,:,j)*pa(i))/3.0d0/xmd)
+
+             RSb(:,:,i,j)=matmul(pb_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &    2.0d0*pb(i)*pb(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pb(j)-gamma_mu(:,:,j)*pb(i))/3.0d0/xmd) 
+           
+             RSc(:,:,i,j)=matmul(pc_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &    2.0d0*pc(i)*pc(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pc(j)-gamma_mu(:,:,j)*pc(i))/3.0d0/xmd) 
+           
+             RSd(:,:,i,j)=matmul(pd_sl(:,:)+xmd*id4(:,:),g_munu(i,j)*id4(:,:)-matmul(gamma_mu(:,:,i),gamma_mu(:,:,j))/3.0d0- &
+        &    2.0d0*pd(i)*pd(j)/3.0d0/xmd**2*id4(:,:)-(gamma_mu(:,:,i)*pd(j)-gamma_mu(:,:,j)*pd(i))/3.0d0/xmd) 
+        endif
+
+        !Full propagator
+       if(DeltaPropFull.eq.1) then
         RSa(:,:,i,j) = RSa(:,:,i,j)*(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
         RSb(:,:,i,j) = RSb(:,:,i,j)*(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
         RSc(:,:,i,j) = RSc(:,:,i,j)*(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
         RSd(:,:,i,j) = RSd(:,:,i,j)*(1.0d0/(pd(1)**2-sum(pd(2:4)**2)-xmd_d**2))
+        !Real part of propagator only
        else
         RSa(:,:,i,j) = RSa(:,:,i,j)*(pa(1)**2-sum(pa(2:4)**2)-xmd**2)/((pa(1)**2-sum(pa(2:4)**2)-xmd**2)**2+xmd**2*ga**2)
         RSb(:,:,i,j) = RSb(:,:,i,j)*(pb(1)**2-sum(pb(2:4)**2)-xmd**2)/((pb(1)**2-sum(pb(2:4)**2)-xmd**2)**2+xmd**2*gb**2)
@@ -405,19 +434,11 @@ subroutine det_JaJb_JcJd()
         RSd(:,:,i,j) = RSd(:,:,i,j)*(pd(1)**2-sum(pd(2:4)**2)-xmd**2)/((pd(1)**2-sum(pd(2:4)**2)-xmd**2)**2+xmd**2*gd**2)
        endif
 
-         J_a_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ax*ca5*xmn*g_munu(i,j)*id4(:,:)
-         J_b_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ax*ca5*xmn*g_munu(j,i)*id4(:,:)
-         J_c_2(:,:,i,j)=cv3*matmul(g_munu(i,j)*q_sl(:,:)-q(i)*gamma_mu(:,:,j),gamma_mu(:,:,5))+ax*ca5*xmn*g_munu(i,j)*id4(:,:)
-         J_d_1(:,:,i,j)=cv3*matmul(gamma_mu(:,:,5),g_munu(j,i)*q_sl(:,:)-q(j)*gamma_mu(:,:,i))+ax*ca5*xmn*g_munu(j,i)*id4(:,:)
-    !         J_a_2(:,:,i,j)=0.5d0*cv3*matmul(q(j)*gamma_mu(:,:,i)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),gamma_mu(:,:,i))), &
-    !    &                   gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
-    !         J_b_1(:,:,i,j)=0.5d0*cv3*matmul(gamma_mu(:,:,5),q(i)*gamma_mu(:,:,j)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),& 
-    !    &                   gamma_mu(:,:,i))))+ca5*xmn*g_munu(j,i)*id4(:,:)
-    !         J_c_2(:,:,i,j)=0.5d0*cv3*matmul(q(j)*gamma_mu(:,:,i)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),gamma_mu(:,:,i))), &
-    !    &                   gamma_mu(:,:,5))+ca5*xmn*g_munu(i,j)*id4(:,:)
-    !         J_d_1(:,:,i,j)=0.5d0*cv3*matmul(gamma_mu(:,:,5),q(i)*gamma_mu(:,:,j)-matmul(gamma_mu(:,:,j),matmul(q_sl(:,:),& 
-    !    &                   gamma_mu(:,:,i))))+ca5*xmn*g_munu(j,i)*id4(:,:)
-
+       !GammaNDelta Vertices (Forwards and Backwards)
+        call ForwardsDeltaVertex(p1,q,q_sl,i,j,J_a_2)
+        call BackwardsDeltaVertex(pp1,q,q_sl,i,j,J_b_1)
+        call ForwardsDeltaVertex(p2,q,q_sl,i,j,J_c_2)
+        call BackwardsDeltaVertex(pp2,q,q_sl,i,j,J_d_1)
 
       enddo
     enddo
@@ -570,6 +591,53 @@ subroutine JDelta(janti)
         enddo
     enddo
 end subroutine JDelta
+
+subroutine ForwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDelta)
+    implicit none
+    integer*4, intent(in) :: i,j 
+    real*8 :: pdelta(4)
+    real*8, intent(in) :: pin(4),qin(4) 
+    complex*16 :: GammaNDeltaV(4,4,4,4),GammaNDeltaA(4,4,4,4),qslash(4,4)
+    complex*16, intent(inout) :: GammaNDelta(4,4,4,4)
+
+    GammaNDelta(:,:,i,j) = czero
+    GammaNDeltaA(:,:,i,j) = czero
+    GammaNDeltaV(:,:,i,j) = czero
+
+    pdelta = pin + qin
+
+    GammaNDeltaV(:,:,i,j) = matmul(cV(1)*(g_munu(i,j)*qslash(:,:)-qin(i)*gamma_mu(:,:,j))  + &
+        &   cV(2)/xmn*id4(:,:)*(g_munu(i,j)*scalarprod(qin,pdelta) - qin(i)*pdelta(j)) + &
+        &   cV(3)/xmn*id4(:,:)*(g_munu(i,j)*scalarprod(qin,pin) - qin(i)*pin(j)) &
+        &   ,gamma_mu(:,:,5))
+
+    GammaNDeltaA(:,:,i,j) = ax*(cA(1)/xmn*id4(:,:)*(g_munu(i,j)*scalarprod(qin,pdelta) - qin(i)*pdelta(j)) + &
+        &   cA(2)*xmn*id4(:,:)*g_munu(i,j) + &
+        &   cA(3)/xmn*id4(:,:)*qin(i)*qin(j) &
+        &   )
+
+    GammaNDelta(:,:,i,j) = GammaNDeltaV(:,:,i,j) + GammaNDeltaA(:,:,i,j)
+
+    return
+
+end subroutine ForwardsDeltaVertex
+
+subroutine BackwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDelta)
+    implicit none
+    integer*4, intent(in) :: i,j 
+    real*8, intent(in) :: pin(4),qin(4) 
+    complex*16 :: GammaNDeltaTemp(4,4,4,4),qslash(4,4)
+    complex*16, intent(inout) :: GammaNDelta(4,4,4,4)
+
+    GammaNDeltaTemp = czero
+
+    call ForwardsDeltaVertex(pin,-qin,-qslash,j,i,GammaNDeltaTemp)
+
+    !Ok now we want \tilde{Gamma_munu(p,q)} = gamma0 (Gamma_numu(p,-q))^dagger gamma0
+    GammaNDelta(:,:,i,j) = matmul(gamma_mu(:,:,1),matmul(transpose(conjg(GammaNDeltaTemp(:,:,j,i))),gamma_mu(:,:,1)))
+    return
+
+end subroutine BackwardsDeltaVertex
 
 subroutine JPiFixed(jtot)
    use isospin_op
@@ -759,9 +827,6 @@ subroutine delta_se(pd2,width,pot)
    real*8 :: pd2,width,kpi,ekpi,eknuc,r2a,rfa,pot
    width=0.0d0
    !pot=0.0d0!-40.0d0
-   if(Deltapot.eq.0) then
-      pot = 0.0d0 
-   endif  
 
    if (pd2.ge.(xmpi+xmn)**2)then
       kpi=dsqrt(1.0d0/4.0d0/pd2*(pd2-(xmn+xmpi)**2)*(pd2-(xmn-xmpi)**2))
@@ -784,6 +849,13 @@ subroutine delta_se(pd2,width,pot)
 
    return
 end subroutine
+
+function scalarprod(p1,p2)
+    implicit none
+    real*8 :: scalarprod,p1(4),p2(4)
+    scalarprod = p1(1)*p2(1) - p1(2)*p2(2) - p1(3)*p2(3) - p1(4)*p2(4)
+    return
+end function
 
 end module
 

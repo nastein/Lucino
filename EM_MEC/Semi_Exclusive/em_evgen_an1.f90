@@ -10,7 +10,8 @@ program ew_eventgen
    real*8, parameter :: xmd=1236.0d0,xmn=938.0d0,xmpi=139.d0,xmmu=105.658357
    real*8 :: progress,ti,tf, xsec_acc  
    integer :: clocks(2), count_rate, seeds(2)
-   integer*4 :: nw,nZ,xA,i_fg,Deltapropfull,DeltaPot,j,ilept,gen_events,num_events,nwlk
+   integer*4 :: nw,nZ,xA,i_fg,j,ilept,gen_events,num_events,nwlk
+   integer*4 :: DeltaPropFull,DeltaProp3half
    integer*4 :: gen_events_perproc, ierr
    integer*4 :: local_trials, global_trials, local_events, global_events
    real*8 :: wmax,enu,thetalept,Eshift,xpf,hw,sig,sig_err,omega,qval,thetaproton,phiproton
@@ -46,8 +47,8 @@ program ew_eventgen
       read(5,*) phiproton
       read(5,*) xpf
       read(5,*) Eshift
-      read(5,*) Deltapropfull
-      read(5,*) DeltaPot
+      read(5,*) DeltaPropFull
+      read(5,*) DeltaProp3half
       read(5,*) nZ,xA
       read(5,*) i_fg
       read(5,*) CC
@@ -64,20 +65,8 @@ program ew_eventgen
          FG_string = 'SF'
       endif
 
-      if(Deltapropfull.eq.1) then 
-         Delta_string = 'FullDeltaProp_'
-      else if(Deltapropfull.eq.1 .and.DeltaPot.eq.1) then 
-         Delta_string = 'FullDeltaProp_DeltaPot_'
-      else if(Deltapropfull.eq.0 .and.DeltaPot.eq.1) then 
-         Delta_string = 'DeltaPot_'
-      else
-         Delta_string = ''
-      endif
-
-
-
-      write(fname,'(A,A,A,A,A,A,I0,A,I0,A,I0,A,I0,A,I0,A)') 'test_resp_',trim(Delta_string),trim(int_string), &
-      &  '_',trim(FG_string),'_Ebeam_', int(enu),'_qval_',int(qval), &
+      write(fname,'(A,A,A,I0,A,I0,A,I0,A,I0,A,I0,A)') 'test_',&
+      &  trim(FG_string),'_Ebeam_', int(enu),'_qval_',int(qval), &
       &  '_w_',int(omega),'_ptheta_',int(thetaproton),'_phi_',int(phiproton), '.out'
       if (myrank().eq.0) then
          print*, 'Output file: ', fname
@@ -101,8 +90,8 @@ program ew_eventgen
    call bcast(seeds(2))
    call bcast(xpf)
    call bcast(Eshift)
-   call bcast(Deltapropfull)
-   call bcast(DeltaPot)
+   call bcast(DeltaPropFull)
+   call bcast(DeltaProp3half)
    call bcast(nZ)
    call bcast(xA)
    call bcast(i_fg)
@@ -143,7 +132,7 @@ program ew_eventgen
    endif
 
    !Initialize currents module
-   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,Deltapropfull,DeltaPot)
+   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,DeltaPropFull,DeltaProp3half)
 
    !Initialize spectral function and other necessary inputs
    call mc_init(gen_events_perproc,i_fg,irn_int,irn_event, &
