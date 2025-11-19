@@ -617,7 +617,9 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    real*8 :: vcm(3),vcm_mag,gammacm,uhatcm(3) 
    real*8 :: stpp1_cm,E_tot,p_tot(3),p_totmag,pp1_cm_mag,lorentz_jac
    complex*16 :: had(4,4), r_now(4,4)
-   complex*16 :: j_delta(2,2,2,2,2,2,2,2,4), j_pi(2,2,2,2,2,2,2,2,4)
+   complex*16 :: j_delta_V(2,2,2,2,2,2,2,2,4), j_pi_V(2,2,2,2,2,2,2,2,4)
+   complex*16 :: j_delta_A(2,2,2,2,2,2,2,2,4), j_pi_A(2,2,2,2,2,2,2,2,4)
+   complex*16 :: j_tot_V(2,2,2,2,2,2,2,2,4),j_tot_A(2,2,2,2,2,2,2,2,4)
    complex*16 :: j_tot(2,2,2,2,2,2,2,2,4)
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2
@@ -703,9 +705,9 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    !Now I'm integrating over only 2 angles so my dOmega = 4*pi
 
    !Define energy transfer for currents
-   if(i_fg.eq.0) then
-      q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
-   endif
+   !if(i_fg.eq.0) then
+   !   q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
+   !endif
    if(q_4(1).lt.0.0d0) then
      r_now=czero
      return
@@ -736,20 +738,26 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    rho=xpf**3/(1.5d0*pi**2)
 
    had=czero
-   j_delta=czero
-   j_pi=czero
-   j_tot=czero
+   j_delta_V=czero
+   j_pi_V=czero
+   j_tot_V=czero
+   j_delta_A=czero
+   j_pi_A=czero
+   j_tot_A=czero
 
    !Pass momenta and form factors to currents module
    call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cV,cA,np_del,pdel,pot_del)
    call define_lept_spinors() 
-   call JDelta(j_delta)
-   call JPi(j_pi)
+   call JDelta(j_delta_V,j_delta_A)
+   call JPi(j_pi_V,j_pi_A)
 
-   j_tot = j_delta + j_pi
+   j_tot_V = j_delta_V + j_pi_V
+   j_tot_A = j_delta_A + j_pi_A
+   !Apply current conservation to vector piece of current j_z = j0*w/q
+   j_tot_V(:,:,:,:,:,:,:,:,4) = j_tot_V(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
 
-   !Apply current conservation j_z = j0*w/q
-   j_tot(:,:,:,:,:,:,:,:,4) = j_tot(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
+
+   j_tot = j_tot_V + j_tot_A
 
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
