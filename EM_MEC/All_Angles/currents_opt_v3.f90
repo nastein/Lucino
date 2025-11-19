@@ -1,6 +1,6 @@
 module dirac_matrices
     implicit none
-    integer*4, private, save :: i_fl, pair_isospin,DeltapropReal,Deltaprop3half
+    integer*4, private, save :: i_fl, pair_isospin,DeltapropFull,Deltaprop3half,DeltaPot
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
@@ -25,17 +25,19 @@ module dirac_matrices
          &   Pi_k1(4,4),Pi_k2(4,4)
     real*8, private, save ::  p1_(4),p2_(4),pp1_(4),pp2_(4),q(4),k1(4),k2(4),l(4),lp(4)
     real*8, private, save ::  p1(4),p2(4),pp1(4),pp2(4)
-    complex*16, private, save :: J_a_mu(4,4,4),J_b_mu(4,4,4),J_c_mu(4,4,4),J_d_mu(4,4,4)
-    complex*16, private, save :: J_pif(4,4,4),J_sea1(4,4,4),J_sea2(4,4,4),J_pl1(4,4,4),J_pl2(4,4,4)    
+    complex*16, private, save :: J_a_V_mu(4,4,4),J_b_V_mu(4,4,4),J_c_V_mu(4,4,4),J_d_V_mu(4,4,4)
+    complex*16, private, save :: J_a_A_mu(4,4,4),J_b_A_mu(4,4,4),J_c_A_mu(4,4,4),J_d_A_mu(4,4,4)
+    complex*16, private, save :: J_pif_V(4,4,4),J_sea1_V(4,4,4),J_sea2_V(4,4,4),J_pl1_V(4,4,4),J_pl2_V(4,4,4) 
+    complex*16, private, save :: J_pif_A(4,4,4),J_sea1_A(4,4,4),J_sea2_A(4,4,4),J_pl1_A(4,4,4),J_pl2_A(4,4,4)   
     real*8, private,save :: xmd,xmn,xmpi,w,xmlept1,xmlept2,ax
 contains
 
 subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
-    &   xmlept2_in,CC_in,DeltapropReal_in,Deltaprop3half_in)
+    &   xmlept2_in,CC_in,DeltapropFull_in,Deltaprop3half_in,DeltaPot_in)
     use mympi
     use isospin_op
     implicit none
-    integer*4 :: i,DeltapropReal_in,Deltaprop3half_in
+    integer*4 :: i,DeltapropFull_in,Deltaprop3half_in,DeltaPot_in
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
     logical :: CC_in
 
@@ -44,8 +46,9 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
     xmpi=xmpi_in
     xmlept1 = xmlept1_in
     xmlept2 = xmlept2_in
-    DeltapropReal = DeltapropReal_in
+    DeltapropFull = DeltapropFull_in
     Deltaprop3half = Deltaprop3half_in
+    DeltaPot = DeltaPot_in
 
     sig(:,:,:)=czero
     id(:,:)=czero
@@ -302,17 +305,29 @@ subroutine det_Jpi()
         & - 1.0d0/(k1sq-xmpi**2)/(lpi**2-k1sq) &
         & - 1.0d0/(k2sq-xmpi**2)/(lpi**2-k2sq))
    do mu=1,4
-      J_pif(:,:,mu)=gep*(k1(mu)-k2(mu))*Pi_k1(:,:)!*fact
-      J_sea1(:,:,mu)=-gep*gamma_5mu(:,:,mu)-ax*frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
-      J_sea2(:,:,mu)=gep*gamma_5mu(:,:,mu)+ax*frho2/ga*gamma_mu(:,:,mu)!/fpik1**2
-      J_pl1(:,:,mu)=frho1/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
-      J_pl2(:,:,mu)=-frho2/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
+      J_pif_V(:,:,mu)=gep*(k1(mu)-k2(mu))*Pi_k1(:,:)*fact
+      J_sea1_V(:,:,mu)=-gep*gamma_5mu(:,:,mu)
+      J_sea2_V(:,:,mu)=gep*gamma_5mu(:,:,mu)
+      J_pl1_V(:,:,mu)=czero
+      J_pl2_V(:,:,mu)=czero
+
+      J_pif_A(:,:,mu)=czero
+      J_sea1_A(:,:,mu)=ax*frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
+      J_sea2_A(:,:,mu)=ax*frho2/ga*gamma_mu(:,:,mu)!/fpik1**2
+      J_pl1_A(:,:,mu)=ax*frho1/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
+      J_pl2_A(:,:,mu)=-ax*frho2/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
    enddo
-  J_pif=J_pif*fpik1*fpik2*fpinn2/xmpi**2 
-  J_sea1=J_sea1*fpik2**2*fpinn2/xmpi**2
-  J_sea2=J_sea2*fpik1**2*fpinn2/xmpi**2
-  J_pl1=ax*J_pl1*fpinn2/xmpi**2*fpik2**2
-  J_pl2=ax*J_pl2*fpinn2/xmpi**2*fpik1**2
+  J_pif_V=J_pif_V*fpik1*fpik2*fpinn2/xmpi**2 
+  J_sea1_V=J_sea1_V*fpik2**2*fpinn2/xmpi**2
+  J_sea2_V=J_sea2_V*fpik1**2*fpinn2/xmpi**2
+  J_pl1_V=J_pl1_V*fpinn2/xmpi**2*fpik2**2
+  J_pl2_V=J_pl2_V*fpinn2/xmpi**2*fpik1**2
+
+  J_pif_A=J_pif_A*fpik1*fpik2*fpinn2/xmpi**2 
+  J_sea1_A=J_sea1_A*fpik2**2*fpinn2/xmpi**2
+  J_sea2_A=J_sea2_A*fpik1**2*fpinn2/xmpi**2
+  J_pl1_A=J_pl1_A*fpinn2/xmpi**2*fpik2**2
+  J_pl2_A=J_pl2_A*fpinn2/xmpi**2*fpik1**2
   return
 end subroutine  
 
@@ -322,13 +337,17 @@ subroutine det_JaJb_JcJd()
     implicit none
     integer*4 :: i,j,mu
     real*8 :: pa(4),pb(4),pc(4),pd(4),width,fpik1,fpik2,fpindk2,fpindk1
+    real*8 :: cV(3),cA(3)
     real*8 :: ga,gb,gc,gd,pa2,pb2,pc2,pd2
     real*8 :: pot_pa,pot_pb,pot_pc,pot_pd,e_gs,e_bg
     complex*16 :: pa_sl(4,4),pb_sl(4,4),pc_sl(4,4),pd_sl(4,4)
     complex*16 :: xmd_a,xmd_b,xmd_c,xmd_d
     complex*16 :: j_a_1(4,4,4),j_a_2(4,4,4,4),RSa(4,4,4,4),RSb(4,4,4,4),j_b_1(4,4,4,4),j_b_2(4,4,4)
     complex*16 :: j_c_1(4,4,4),j_c_2(4,4,4,4),RSc(4,4,4,4),RSd(4,4,4,4),j_d_1(4,4,4,4),j_d_2(4,4,4)
-    complex*16 :: J_a(4,4,4),J_b(4,4,4),J_c(4,4,4),J_d(4,4,4)
+    complex*16 :: j_a_2_V(4,4,4,4),j_a_2_A(4,4,4,4),j_c_2_V(4,4,4,4),j_c_2_A(4,4,4,4)
+    complex*16 :: j_b_1_V(4,4,4,4),j_b_1_A(4,4,4,4),j_d_1_V(4,4,4,4),j_d_1_A(4,4,4,4)
+    complex*16 :: J_a_V(4,4,4),J_b_V(4,4,4),J_c_V(4,4,4),J_d_V(4,4,4)
+    complex*16 :: J_a_A(4,4,4),J_b_A(4,4,4),J_c_A(4,4,4),J_d_A(4,4,4)
   
     !pa(1)=(e_gs-e_bg)*0.5d0+xmn+q(1)
     pa(:)=p1(:)+q(:)
@@ -420,7 +439,7 @@ subroutine det_JaJb_JcJd()
         endif
 
         !Full propagator
-       if(DeltapropReal.eq.0) then
+       if(DeltaPropFull.eq.1) then
         RSa(:,:,i,j) = RSa(:,:,i,j)*(1.0d0/(pa(1)**2-sum(pa(2:4)**2)-xmd_a**2))
         RSb(:,:,i,j) = RSb(:,:,i,j)*(1.0d0/(pb(1)**2-sum(pb(2:4)**2)-xmd_b**2))
         RSc(:,:,i,j) = RSc(:,:,i,j)*(1.0d0/(pc(1)**2-sum(pc(2:4)**2)-xmd_c**2))
@@ -433,45 +452,61 @@ subroutine det_JaJb_JcJd()
         RSd(:,:,i,j) = RSd(:,:,i,j)*(pd(1)**2-sum(pd(2:4)**2)-xmd**2)/((pd(1)**2-sum(pd(2:4)**2)-xmd**2)**2+xmd**2*gd**2)
        endif
 
-         !GammaNDelta Vertices (Forwards and Backwards)
-        call ForwardsDeltaVertex(p1,q,q_sl,i,j,J_a_2)
-        call BackwardsDeltaVertex(pp1,q,q_sl,i,j,J_b_1)
-        call ForwardsDeltaVertex(p2,q,q_sl,i,j,J_c_2)
-        call BackwardsDeltaVertex(pp2,q,q_sl,i,j,J_d_1)
-        
+       !GammaNDelta Vertices (Forwards and Backwards)
+        call ForwardsDeltaVertex(p1,q,q_sl,i,j,J_a_2_V,J_a_2_A)
+        call BackwardsDeltaVertex(pp1,q,q_sl,i,j,J_b_1_V,J_b_1_A)
+        call ForwardsDeltaVertex(p2,q,q_sl,i,j,J_c_2_V,J_c_2_A)
+        call BackwardsDeltaVertex(pp2,q,q_sl,i,j,J_d_1_V,j_d_1_A)
+
       enddo
     enddo
     ! costruisco Jmua, Jmub
    do mu=1,4
-      J_a(:,:,mu)=czero
-      J_b(:,:,mu)=czero
-      J_c(:,:,mu)=czero
-      J_d(:,:,mu)=czero
+      J_a_V(:,:,mu)=czero
+      J_b_V(:,:,mu)=czero
+      J_c_V(:,:,mu)=czero
+      J_d_V(:,:,mu)=czero
+      J_a_A(:,:,mu)=czero
+      J_b_A(:,:,mu)=czero
+      J_c_A(:,:,mu)=czero
+      J_d_A(:,:,mu)=czero
       do i=1,4
          do j=1,4
-            J_a(:,:,mu)=J_a(:,:,mu)+matmul(J_a_1(:,:,i)*g_munu(i,i),matmul(RSa(:,:,i,j),g_munu(j,j)*J_a_2(:,:,j,mu)))
-            J_b(:,:,mu)=J_b(:,:,mu)+matmul(J_b_1(:,:,mu,i)*g_munu(i,i),matmul(RSb(:,:,i,j),g_munu(j,j)*J_b_2(:,:,j))) 
-            J_c(:,:,mu)=J_c(:,:,mu)+matmul(J_c_1(:,:,i)*g_munu(i,i),matmul(RSc(:,:,i,j),g_munu(j,j)*J_c_2(:,:,j,mu)))
-            J_d(:,:,mu)=J_d(:,:,mu)+matmul(J_d_1(:,:,mu,i)*g_munu(i,i),matmul(RSd(:,:,i,j),g_munu(j,j)*J_d_2(:,:,j))) 
+            J_a_V(:,:,mu)=J_a_V(:,:,mu)+matmul(J_a_1(:,:,i)*g_munu(i,i),matmul(RSa(:,:,i,j),g_munu(j,j)*J_a_2_V(:,:,j,mu)))
+            J_b_V(:,:,mu)=J_b_V(:,:,mu)+matmul(J_b_1_V(:,:,mu,i)*g_munu(i,i),matmul(RSb(:,:,i,j),g_munu(j,j)*J_b_2(:,:,j))) 
+            J_c_V(:,:,mu)=J_c_V(:,:,mu)+matmul(J_c_1(:,:,i)*g_munu(i,i),matmul(RSc(:,:,i,j),g_munu(j,j)*J_c_2_V(:,:,j,mu)))
+            J_d_V(:,:,mu)=J_d_V(:,:,mu)+matmul(J_d_1_V(:,:,mu,i)*g_munu(i,i),matmul(RSd(:,:,i,j),g_munu(j,j)*J_d_2(:,:,j))) 
+
+            J_a_A(:,:,mu)=J_a_A(:,:,mu)+matmul(J_a_1(:,:,i)*g_munu(i,i),matmul(RSa(:,:,i,j),g_munu(j,j)*J_a_2_A(:,:,j,mu)))
+            J_b_A(:,:,mu)=J_b_A(:,:,mu)+matmul(J_b_1_A(:,:,mu,i)*g_munu(i,i),matmul(RSb(:,:,i,j),g_munu(j,j)*J_b_2(:,:,j))) 
+            J_c_A(:,:,mu)=J_c_A(:,:,mu)+matmul(J_c_1(:,:,i)*g_munu(i,i),matmul(RSc(:,:,i,j),g_munu(j,j)*J_c_2_A(:,:,j,mu)))
+            J_d_A(:,:,mu)=J_d_A(:,:,mu)+matmul(J_d_1_A(:,:,mu,i)*g_munu(i,i),matmul(RSd(:,:,i,j),g_munu(j,j)*J_d_2(:,:,j))) 
          enddo
       enddo
    enddo
 
-    J_a_mu=J_a*fpik2*fpindk2*sqrt(fpinn2)*fstar/xmpi**2/xmn
-    J_b_mu=J_b*fpik2*fpindk2*sqrt(fpinn2)*fstar/xmpi**2/xmn
-    J_c_mu=J_c*fpik1*fpindk1*sqrt(fpinn2)*fstar/xmpi**2/xmn
-    J_d_mu=J_d*fpik1*fpindk1*sqrt(fpinn2)*fstar/xmpi**2/xmn
+    J_a_V_mu=J_a_V*fpik2*fpindk2*sqrt(fpinn2)*fstar/xmpi**2/xmn
+    J_b_V_mu=J_b_V*fpik2*fpindk2*sqrt(fpinn2)*fstar/xmpi**2/xmn
+    J_c_V_mu=J_c_V*fpik1*fpindk1*sqrt(fpinn2)*fstar/xmpi**2/xmn
+    J_d_V_mu=J_d_V*fpik1*fpindk1*sqrt(fpinn2)*fstar/xmpi**2/xmn
+
+    J_a_A_mu=J_a_A*fpik2*fpindk2*sqrt(fpinn2)*fstar/xmpi**2/xmn
+    J_b_A_mu=J_b_A*fpik2*fpindk2*sqrt(fpinn2)*fstar/xmpi**2/xmn
+    J_c_A_mu=J_c_A*fpik1*fpindk1*sqrt(fpinn2)*fstar/xmpi**2/xmn
+    J_d_A_mu=J_d_A*fpik1*fpindk1*sqrt(fpinn2)*fstar/xmpi**2/xmn
  
 end subroutine
 
-subroutine JDeltaFixed(jtot)
+subroutine JDeltaFixed(jtot_V,jtot_A)
     use isospin_op
     implicit none
     integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
     complex*16 :: j_1(2,2),j_2(2,2)
-    complex*16 :: ja_sub(2,2,4),jb_sub(2,2,4),jc_sub(2,2,4),jd_sub(2,2,4)
-    complex*16 :: ja(2,2,2,2,4), jb(2,2,2,2,4)
-    complex*16 :: jc(2,2,2,2,4), jd(2,2,2,2,4), jtot(2,2,2,2,2,2,2,2,4)
+    complex*16 :: ja_V_sub(2,2,4),jb_V_sub(2,2,4),jc_V_sub(2,2,4),jd_V_sub(2,2,4)
+    complex*16 :: ja_A_sub(2,2,4),jb_A_sub(2,2,4),jc_A_sub(2,2,4),jd_A_sub(2,2,4)
+    complex*16 :: ja_V(2,2,2,2,4), jb_V(2,2,2,2,4), jc_V(2,2,2,2,4), jd_V(2,2,2,2,4)
+    complex*16 :: ja_A(2,2,2,2,4), jb_A(2,2,2,2,4), jc_A(2,2,2,2,4), jd_A(2,2,2,2,4) 
+    complex*16 :: jtot_V(2,2,2,2,2,2,2,2,4), jtot_A(2,2,2,2,2,2,2,2,4)
     complex*16 :: iso_a(2,2,2,2), iso_b(2,2,2,2), iso_c(2,2,2,2), iso_d(2,2,2,2)
 
     iso_a = czero
@@ -479,15 +514,25 @@ subroutine JDeltaFixed(jtot)
     iso_d = czero
     iso_c = czero
 
-    ja = czero
-    jb = czero
-    jc = czero
-    jd = czero
-    ja_sub=czero
-    jb_sub=czero
-    jc_sub=czero
-    jd_sub=czero
-    jtot=czero
+    ja_V = czero
+    jb_V = czero
+    jc_V = czero
+    jd_V = czero
+    ja_V_sub=czero
+    jb_V_sub=czero
+    jc_V_sub=czero
+    jd_V_sub=czero
+    jtot_V=czero
+
+    ja_A = czero
+    jb_A = czero
+    jc_A = czero
+    jd_A = czero
+    ja_A_sub=czero
+    jb_A_sub=czero
+    jc_A_sub=czero
+    jd_A_sub=czero
+    jtot_A=czero
 
     !Fill spinors for nucleons with given momenta (specified outside this function)
     call define_spinors()
@@ -500,10 +545,15 @@ subroutine JDeltaFixed(jtot)
         j_2(f1,i1)=sum(ubarpp2(f1,:)*matmul(Pi_k2(:,:),up2(i1,:)))
         j_1(f1,i1)=sum(ubarpp1(f1,:)*matmul(Pi_k1(:,:),up1(i1,:)))
         do i=1,4
-            ja_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_mu(:,:,i),up1(i1,:)))
-            jb_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_b_mu(:,:,i),up1(i1,:)))
-            jc_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_c_mu(:,:,i),up2(i1,:)))
-            jd_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_d_mu(:,:,i),up2(i1,:)))
+            ja_V_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_V_mu(:,:,i),up1(i1,:)))
+            jb_V_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_b_V_mu(:,:,i),up1(i1,:)))
+            jc_V_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_c_V_mu(:,:,i),up2(i1,:)))
+            jd_V_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_d_V_mu(:,:,i),up2(i1,:)))
+
+            ja_A_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_A_mu(:,:,i),up1(i1,:)))
+            jb_A_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_b_A_mu(:,:,i),up1(i1,:)))
+            jc_A_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_c_A_mu(:,:,i),up2(i1,:)))
+            jd_A_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_d_A_mu(:,:,i),up2(i1,:)))
         enddo
       enddo
     enddo
@@ -513,10 +563,15 @@ subroutine JDeltaFixed(jtot)
             do f1=1,2
                 do f2=1,2
                     do i=1,4
-                        ja(f2,f1,i2,i1,i)=j_2(f2,i2)*ja_sub(f1,i1,i)
-                        jb(f2,f1,i2,i1,i)=j_2(f2,i2)*jb_sub(f1,i1,i)
-                        jc(f2,f1,i2,i1,i)=j_1(f1,i1)*jc_sub(f2,i2,i)
-                        jd(f2,f1,i2,i1,i)=j_1(f1,i1)*jd_sub(f2,i2,i)
+                        ja_V(f2,f1,i2,i1,i)=j_2(f2,i2)*ja_V_sub(f1,i1,i)
+                        jb_V(f2,f1,i2,i1,i)=j_2(f2,i2)*jb_V_sub(f1,i1,i)
+                        jc_V(f2,f1,i2,i1,i)=j_1(f1,i1)*jc_V_sub(f2,i2,i)
+                        jd_V(f2,f1,i2,i1,i)=j_1(f1,i1)*jd_V_sub(f2,i2,i)
+
+                        ja_A(f2,f1,i2,i1,i)=j_2(f2,i2)*ja_A_sub(f1,i1,i)
+                        jb_A(f2,f1,i2,i1,i)=j_2(f2,i2)*jb_A_sub(f1,i1,i)
+                        jc_A(f2,f1,i2,i1,i)=j_1(f1,i1)*jc_A_sub(f2,i2,i)
+                        jd_A(f2,f1,i2,i1,i)=j_1(f1,i1)*jd_A_sub(f2,i2,i)
                     enddo
                 enddo
             enddo
@@ -528,13 +583,19 @@ subroutine JDeltaFixed(jtot)
             do tf1=1,2
                 do tf2=1,2
                     iso_a(tf2,tf1,ti2,ti1)=IDeltaA(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
-                    jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) = ja(:,:,:,:,:)*iso_a(tf2,tf1,ti2,ti1)
                     iso_b(tf2,tf1,ti2,ti1)=IDeltaB(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
-                    jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) + jb(:,:,:,:,:)*iso_b(tf2,tf1,ti2,ti1)
                     iso_c(tf2,tf1,ti2,ti1)=IDeltaC(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
-                    jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) + jc(:,:,:,:,:)*iso_c(tf2,tf1,ti2,ti1)
                     iso_d(tf2,tf1,ti2,ti1)=IDeltaD(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
-                    jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) + jd(:,:,:,:,:)*iso_d(tf2,tf1,ti2,ti1)
+
+                    jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) = ja_V(:,:,:,:,:)*iso_a(tf2,tf1,ti2,ti1)
+                    jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) + jb_V(:,:,:,:,:)*iso_b(tf2,tf1,ti2,ti1)
+                    jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) + jc_V(:,:,:,:,:)*iso_c(tf2,tf1,ti2,ti1)
+                    jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) + jd_V(:,:,:,:,:)*iso_d(tf2,tf1,ti2,ti1)
+
+                    jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = ja_A(:,:,:,:,:)*iso_a(tf2,tf1,ti2,ti1)
+                    jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) + jb_A(:,:,:,:,:)*iso_b(tf2,tf1,ti2,ti1)
+                    jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) + jc_A(:,:,:,:,:)*iso_c(tf2,tf1,ti2,ti1)
+                    jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) + jd_A(:,:,:,:,:)*iso_d(tf2,tf1,ti2,ti1)
                 enddo
             enddo
         enddo
@@ -544,30 +605,36 @@ subroutine JDeltaFixed(jtot)
 
 end subroutine JDeltaFixed
 
-subroutine JDelta(janti)
+subroutine JDelta(janti_V,janti_A)
     implicit none
     integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
-    complex*16 :: j1212(2,2,2,2,2,2,2,2,4), j1221(2,2,2,2,2,2,2,2,4)
-    complex*16 :: j2121(2,2,2,2,2,2,2,2,4), j2112(2,2,2,2,2,2,2,2,4)
-    complex*16 :: janti(2,2,2,2,2,2,2,2,4)
+    complex*16 :: j1212_V(2,2,2,2,2,2,2,2,4), j1221_V(2,2,2,2,2,2,2,2,4)
+    complex*16 :: j2121_V(2,2,2,2,2,2,2,2,4), j2112_V(2,2,2,2,2,2,2,2,4)
+    complex*16 :: j1212_A(2,2,2,2,2,2,2,2,4), j1221_A(2,2,2,2,2,2,2,2,4)
+    complex*16 :: j2121_A(2,2,2,2,2,2,2,2,4), j2112_A(2,2,2,2,2,2,2,2,4)
+    complex*16 :: janti_V(2,2,2,2,2,2,2,2,4), janti_A(2,2,2,2,2,2,2,2,4)
 
-    janti=czero
-    j1212=czero
-    j1221=czero
-    j2112=czero
-    j2121=czero
+    janti_V=czero
+    j1212_V=czero
+    j1221_V=czero
+    j2112_V=czero
+    j2121_V=czero
+    j1212_A=czero
+    j1221_A=czero
+    j2112_A=czero
+    j2121_A=czero
 
     call had_current_init(p1_,p2_,pp1_,pp2_)
-    call JDeltaFixed(j1212)
+    call JDeltaFixed(j1212_V,J1212_A)
 
     !call had_current_init(p2_,p1_,pp1_,pp2_)
-    !call JDeltaFixed(j2112)
+    !call JDeltaFixed(j2112_V,J2112_A)
 
     call had_current_init(p1_,p2_,pp2_,pp1_)
-    call JDeltaFixed(j1221)
+    call JDeltaFixed(j1221_V,j1221_A)
 
     !call had_current_init(p2_,p1_,pp2_,pp1_)
-    !call JDeltaFixed(j2121)
+    !call JDeltaFixed(j2121_V,j2121_A)
 
     do ti1=1,2
         do ti2=1,2
@@ -577,10 +644,15 @@ subroutine JDelta(janti)
                         do i2=1,2
                             do f1=1,2
                                 do f2=1,2
-                                    janti(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
-                                    &  - j1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
-                                    &  - j2112(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
-                                    &  + j2121(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
+                                    janti_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - j1221_V(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
+                                    &  - j2112_V(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
+                                    &  + j2121_V(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
+
+                                    janti_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - j1221_A(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
+                                    &  - j2112_A(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
+                                    &  + j2121_A(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
                                 enddo
                             enddo
                         enddo
@@ -591,15 +663,14 @@ subroutine JDelta(janti)
     enddo
 end subroutine JDelta
 
-subroutine ForwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDelta)
+subroutine ForwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDeltaV,GammaNDeltaA)
     implicit none
     integer*4, intent(in) :: i,j 
     real*8 :: pdelta(4)
     real*8, intent(in) :: pin(4),qin(4) 
-    complex*16 :: GammaNDeltaV(4,4,4,4),GammaNDeltaA(4,4,4,4),qslash(4,4)
-    complex*16, intent(inout) :: GammaNDelta(4,4,4,4)
+    complex*16 ::qslash(4,4)
+    complex*16, intent(inout) :: GammaNDeltaV(4,4,4,4),GammaNDeltaA(4,4,4,4)
 
-    GammaNDelta(:,:,i,j) = czero
     GammaNDeltaA(:,:,i,j) = czero
     GammaNDeltaV(:,:,i,j) = czero
 
@@ -615,38 +686,41 @@ subroutine ForwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDelta)
         &   cA(3)/xmn*id4(:,:)*qin(i)*qin(j) &
         &   )
 
-    GammaNDelta(:,:,i,j) = GammaNDeltaV(:,:,i,j) + GammaNDeltaA(:,:,i,j)
-
     return
 
 end subroutine ForwardsDeltaVertex
 
-subroutine BackwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDelta)
+subroutine BackwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDeltaV,GammaNDeltaA)
     implicit none
     integer*4, intent(in) :: i,j 
     real*8, intent(in) :: pin(4),qin(4) 
-    complex*16 :: GammaNDeltaTemp(4,4,4,4),qslash(4,4)
-    complex*16, intent(inout) :: GammaNDelta(4,4,4,4)
+    complex*16 :: GammaNDeltaTempV(4,4,4,4),GammaNDeltaTempA(4,4,4,4),qslash(4,4)
+    complex*16, intent(inout) :: GammaNDeltaV(4,4,4,4),GammaNDeltaA(4,4,4,4)
 
-    GammaNDeltaTemp = czero
+    GammaNDeltaTempV = czero
+    GammaNDeltaTempA = czero
 
-    call ForwardsDeltaVertex(pin,-qin,-qslash,j,i,GammaNDeltaTemp)
+    call ForwardsDeltaVertex(pin,-qin,-qslash,j,i,GammaNDeltaTempV,GammaNDeltaA)
 
     !Ok now we want \tilde{Gamma_munu(p,q)} = gamma0 (Gamma_numu(p,-q))^dagger gamma0
-    GammaNDelta(:,:,i,j) = matmul(gamma_mu(:,:,1),matmul(transpose(conjg(GammaNDeltaTemp(:,:,j,i))),gamma_mu(:,:,1)))
+    GammaNDeltaV(:,:,i,j) = matmul(gamma_mu(:,:,1),matmul(transpose(conjg(GammaNDeltaTempV(:,:,j,i))),gamma_mu(:,:,1)))
+
+    GammaNDeltaA(:,:,i,j) = matmul(gamma_mu(:,:,1),matmul(transpose(conjg(GammaNDeltaTempA(:,:,j,i))),gamma_mu(:,:,1)))
     return
 
 end subroutine BackwardsDeltaVertex
 
-subroutine JPiFixed(jtot)
+subroutine JPiFixed(jtot_V,jtot_A)
    use isospin_op
    implicit none
     integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
     complex*16 :: j_1(2,2),j_2(2,2)
-    complex*16 :: js1_sub(2,2,4),js2_sub(2,2,4),jp1_sub(2,2,4),jp2_sub(2,2,4)
-    complex*16 :: js1(2,2,2,2,4), js2(2,2,2,2,4), jp1(2,2,2,2,4), jp2(2,2,2,2,4)
-    complex*16 :: jf(2,2,2,2,4), jtot(2,2,2,2,2,2,2,2,4)
-    complex*16 :: iso_a(2,2,2,2)
+    complex*16 :: js1_V_sub(2,2,4),js2_V_sub(2,2,4),jp1_V_sub(2,2,4),jp2_V_sub(2,2,4)
+    complex*16 :: js1_A_sub(2,2,4),js2_A_sub(2,2,4),jp1_A_sub(2,2,4),jp2_A_sub(2,2,4)
+    complex*16 :: js1_V(2,2,2,2,4),js2_V(2,2,2,2,4),jp1_V(2,2,2,2,4),jp2_V(2,2,2,2,4),jf_V(2,2,2,2,4)
+    complex*16 :: js1_A(2,2,2,2,4),js2_A(2,2,2,2,4),jp1_A(2,2,2,2,4),jp2_A(2,2,2,2,4),jf_A(2,2,2,2,4)
+    complex*16 :: jtot_V(2,2,2,2,2,2,2,2,4),jtot_A(2,2,2,2,2,2,2,2,4)
+    complex*16 :: iso_pi(2,2,2,2)
 
 
     !Fill spinors for nucleons with given momenta (specified outside this function)
@@ -654,15 +728,27 @@ subroutine JPiFixed(jtot)
     !Compute pion current matrices
     call det_Jpi()
 
-    iso_a=czero
+    iso_pi=czero
 
-    js1 = czero
-    js2= czero
-    jf = czero
-    jp1 = czero
-    jp2 = czero
-    js1_sub=czero
-    js2_sub=czero
+    js1_V = czero
+    js2_V= czero
+    jf_V = czero
+    jp1_V = czero
+    jp2_V = czero
+    js1_V_sub=czero
+    js2_V_sub=czero
+    jp1_V_sub=czero
+    jp2_V_sub=czero
+
+    js1_A = czero
+    js2_A= czero
+    jf_A = czero
+    jp1_A = czero
+    jp2_A = czero
+    js1_A_sub=czero
+    js2_A_sub=czero
+    jp1_A_sub=czero
+    jp2_A_sub=czero
 
 
    do i1=1,2
@@ -670,13 +756,20 @@ subroutine JPiFixed(jtot)
          J_2(f1,i1)=sum(ubarpp2(f1,:)*matmul(Pi_k2(:,:),up2(i1,:)))
          J_1(f1,i1)=sum(ubarpp1(f1,:)*matmul(Pi_k1(:,:),up1(i1,:)))
          do i=1,4
-            js1_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_sea1(:,:,i),up1(i1,:)))
-            js2_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_sea2(:,:,i),up2(i1,:)))
-            jp1_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pl1(:,:,i),up1(i1,:)))
-            jp2_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_pl2(:,:,i),up2(i1,:)))
+            js1_V_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_sea1_V(:,:,i),up1(i1,:)))
+            js2_V_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_sea2_V(:,:,i),up2(i1,:)))
+            jp1_V_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pl1_V(:,:,i),up1(i1,:)))
+            jp2_V_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_pl2_V(:,:,i),up2(i1,:)))
+
+            js1_A_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_sea1_A(:,:,i),up1(i1,:)))
+            js2_A_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_sea2_A(:,:,i),up2(i1,:)))
+            jp1_A_sub(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pl1_A(:,:,i),up1(i1,:)))
+            jp2_A_sub(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_pl2_A(:,:,i),up2(i1,:)))
             do i2=1,2
                 do f2=1,2
-                    jf(f2,f1,i2,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pif(:,:,i),up1(i1,:))) &
+                    jf_V(f2,f1,i2,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pif_V(:,:,i),up1(i1,:))) &
+                        & *sum(ubarpp2(f2,:)*matmul(Pi_k2(:,:),up2(i2,:)))
+                    jf_A(f2,f1,i2,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pif_A(:,:,i),up1(i1,:))) &
                         & *sum(ubarpp2(f2,:)*matmul(Pi_k2(:,:),up2(i2,:)))
                 enddo
             enddo
@@ -688,13 +781,19 @@ subroutine JPiFixed(jtot)
         do i2=1,2
             do f1=1,2
                 do f2=1,2
-                    iso_a(f2,f1,i2,i1)=-Iv(iso(i1,:),iso(i2,:),iso(f1,:),iso(f2,:))
+                    iso_pi(f2,f1,i2,i1)=-Iv(iso(i1,:),iso(i2,:),iso(f1,:),iso(f2,:))
                     do i=1,4
-                        js1(f2,f1,i2,i1,i)=j_2(f2,i2)*js1_sub(f1,i1,i)
-                        js2(f2,f1,i2,i1,i)=j_1(f1,i1)*js2_sub(f2,i2,i) 
+                        js1_V(f2,f1,i2,i1,i)=j_2(f2,i2)*js1_V_sub(f1,i1,i)
+                        js2_V(f2,f1,i2,i1,i)=j_1(f1,i1)*js2_V_sub(f2,i2,i) 
 
-                        jp1(f2,f1,i2,i1,i)=j_2(f2,i2)*jp1_sub(f1,i1,i)
-                        jp2(f2,f1,i2,i1,i)=j_1(f1,i1)*jp2_sub(f2,i2,i)   
+                        jp1_V(f2,f1,i2,i1,i)=j_2(f2,i2)*jp1_V_sub(f1,i1,i)
+                        jp2_V(f2,f1,i2,i1,i)=j_1(f1,i1)*jp2_V_sub(f2,i2,i)  
+
+                        js1_A(f2,f1,i2,i1,i)=j_2(f2,i2)*js1_A_sub(f1,i1,i)
+                        js2_A(f2,f1,i2,i1,i)=j_1(f1,i1)*js2_A_sub(f2,i2,i) 
+
+                        jp1_A(f2,f1,i2,i1,i)=j_2(f2,i2)*jp1_A_sub(f1,i1,i)
+                        jp2_A(f2,f1,i2,i1,i)=j_1(f1,i1)*jp2_A_sub(f2,i2,i)  
                     enddo
                 enddo
             enddo
@@ -705,9 +804,13 @@ subroutine JPiFixed(jtot)
         do ti2=1,2
             do tf1=1,2
                 do tf2=1,2
-                    jtot(:,:,:,:,tf2,tf1,ti2,ti1,:) = iso_a(tf2,tf1,ti2,ti1)&
-                        & * (js1(:,:,:,:,:) + js2(:,:,:,:,:) + jf(:,:,:,:,:)&
-                        & + jp1(:,:,:,:,:) + jp2(:,:,:,:,:))
+                    jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) = iso_pi(tf2,tf1,ti2,ti1)&
+                        & * (js1_V(:,:,:,:,:) + js2_V(:,:,:,:,:) + jf_V(:,:,:,:,:)&
+                        & + jp1_V(:,:,:,:,:) + jp2_V(:,:,:,:,:))
+
+                    jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = iso_pi(tf2,tf1,ti2,ti1)&
+                        & * (js1_A(:,:,:,:,:) + js2_A(:,:,:,:,:) + jf_A(:,:,:,:,:)&
+                        & + jp1_A(:,:,:,:,:) + jp2_A(:,:,:,:,:))
                 enddo
             enddo
         enddo
@@ -717,30 +820,38 @@ subroutine JPiFixed(jtot)
    return
 end subroutine JPiFixed
 
-subroutine JPi(janti)
+subroutine JPi(janti_V,janti_A)
     implicit none
     integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
-    complex*16 :: j1212(2,2,2,2,2,2,2,2,4), j1221(2,2,2,2,2,2,2,2,4)
-    complex*16 :: j2121(2,2,2,2,2,2,2,2,4), j2112(2,2,2,2,2,2,2,2,4)
-    complex*16 :: janti(2,2,2,2,2,2,2,2,4)
+    complex*16 :: j1212_V(2,2,2,2,2,2,2,2,4), j1221_V(2,2,2,2,2,2,2,2,4)
+    complex*16 :: j2121_V(2,2,2,2,2,2,2,2,4), j2112_V(2,2,2,2,2,2,2,2,4)
+    complex*16 :: j1212_A(2,2,2,2,2,2,2,2,4), j1221_A(2,2,2,2,2,2,2,2,4)
+    complex*16 :: j2121_A(2,2,2,2,2,2,2,2,4), j2112_A(2,2,2,2,2,2,2,2,4)
+    complex*16 :: janti_V(2,2,2,2,2,2,2,2,4), janti_A(2,2,2,2,2,2,2,2,4)
 
-    janti=czero
-    j1212=czero
-    j1221=czero
-    j2112=czero
-    j2121=czero
+    janti_V=czero
+    j1212_V=czero
+    j1221_V=czero
+    j2112_V=czero
+    j2121_V=czero
+
+    janti_A=czero
+    j1212_A=czero
+    j1221_A=czero
+    j2112_A=czero
+    j2121_A=czero
 
     call had_current_init(p1_,p2_,pp1_,pp2_)
-    call JPiFixed(j1212)
+    call JPiFixed(j1212_V,j1212_A)
 
     !call had_current_init(p2_,p1_,pp1_,pp2_)
-    !call JPiFixed(j2112)
+    !call JPiFixed(j2112_V,j2112_A)
 
     call had_current_init(p1_,p2_,pp2_,pp1_)
-    call JPiFixed(j1221)
+    call JPiFixed(j1221_V,j1221_A)
 
     !call had_current_init(p2_,p1_,pp2_,pp1_)
-    !call JPiFixed(j2121)
+    !call JPiFixed(j2121_V,j2121_A)
 
     do ti1=1,2
         do ti2=1,2
@@ -750,10 +861,15 @@ subroutine JPi(janti)
                         do i2=1,2
                             do f1=1,2
                                 do f2=1,2
-                                    janti(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
-                                    &  - j1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
-                                    &  - j2112(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
-                                    &  + j2121(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
+                                    janti_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - j1221_V(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
+                                    &  - j2112_V(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
+                                    &  + j2121_V(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
+
+                                    janti_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - j1221_A(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
+                                    &  - j2112_A(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
+                                    &  + j2121_A(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
                                 enddo
                             enddo
                         enddo
@@ -764,7 +880,6 @@ subroutine JPi(janti)
     enddo
 end subroutine JPi
 
- 
 subroutine lept_tens(lept)
    implicit none
    integer*4 :: i1,f1,i,j
@@ -825,7 +940,11 @@ subroutine delta_se(pd2,width,pot)
    implicit none
    real*8 :: pd2,width,kpi,ekpi,eknuc,r2a,rfa,pot
    width=0.0d0
-   !pot=0.0d0!-40.0d0
+
+   if(DeltaPot.eq.0) then
+    pot=0.0d0 
+   endif
+
    if (pd2.ge.(xmpi+xmn)**2)then
       kpi=dsqrt(1.0d0/4.0d0/pd2*(pd2-(xmn+xmpi)**2)*(pd2-(xmn-xmpi)**2))
       ekpi=dsqrt(kpi**2+xmpi**2)
@@ -839,7 +958,6 @@ subroutine delta_se(pd2,width,pot)
 
       width=0.38/(3.0d0*xmpi**2)*kpi**3/sqrt(pd2)*(xmn+eknuc)  &
    &  *rfa**2-pot*2.0d0!*(lpind**2/(lpind**2-xmpi**2))**2
-
 
       return
    endif
