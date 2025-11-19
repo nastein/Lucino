@@ -1,6 +1,6 @@
 module dirac_matrices
     implicit none
-    integer*4, private, save :: i_fl,DeltapropFull,Deltaprop3half
+    integer*4, private, save :: i_fl,DeltapropFull,Deltaprop3half,DeltaPot
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
@@ -32,11 +32,12 @@ module dirac_matrices
     real*8, private,save :: xmd,xmn,xmpi,w,xmlept1,xmlept2,ax
 contains
 
-subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in,xmlept2_in,CC_in,DeltaPropFull_in,Deltaprop3half_in)
+subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in,xmlept2_in, &
+    &   CC_in,DeltaPropFull_in,Deltaprop3half_in,DeltaPot_in)
     use mympi
     use isospin_op
     implicit none
-    integer*4 :: i,DeltaPropFull_in,Deltaprop3half_in
+    integer*4 :: i,DeltaPropFull_in,Deltaprop3half_in,DeltaPot_in
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
     logical :: CC_in
 
@@ -47,6 +48,7 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in,xmlept2_in,CC_in,D
     xmlept2 = xmlept2_in
     DeltaPropFull = DeltaPropFull_in
     Deltaprop3half = Deltaprop3half_in
+    DeltaPot = DeltaPot_in
 
     sig(:,:,:)=czero
     id(:,:)=czero
@@ -937,7 +939,10 @@ subroutine delta_se(pd2,width,pot)
    implicit none
    real*8 :: pd2,width,kpi,ekpi,eknuc,r2a,rfa,pot
    width=0.0d0
-   !pot=0.0d0!-40.0d0
+
+   if(DeltaPot.eq.0) then
+    pot=0.0d0 
+   endif
 
    if (pd2.ge.(xmpi+xmn)**2)then
       kpi=dsqrt(1.0d0/4.0d0/pd2*(pd2-(xmn+xmpi)**2)*(pd2-(xmn-xmpi)**2))

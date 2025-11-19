@@ -1,7 +1,7 @@
 module mc_module
    use event_module
    implicit none 
-   integer*4, private, save :: xA,nZ,i_fg,np,ne,nwlk,gen_events,isospin,nqrel,nqtot
+   integer*4, private, save :: xA,nZ,i_fg,np,ne,nwlk,gen_events,nqrel,nqtot
    complex*16, private, parameter :: czero = (0.0d0,0.0d0)
    complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
    complex*16, private, parameter :: ci    = (0.0d0,1.0d0)
@@ -9,11 +9,10 @@ module mc_module
    complex*16, private, save :: it1(2),it2(2)
    integer*4, private, parameter :: nev=15000,neq=10000,nvoid=10,np0=40
    integer*4, private, parameter :: ntemp=1000
-   real*8, private, save ::  xpf_p,xpf_n,Eshift,xpmax
-   real*8, private, save :: xsec_acc
+   real*8, private, save ::  xpf,Eshift,xpmax
    real*8, private, save:: norm,norm0,norm1
    real*8, private, save:: mlept
-   real*8, private, save:: wmax,thetalept
+   real*8, private, save:: wmax,qval,thetaprot,phiprot,w
    real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0,ppmax=1.0d0*1.e3
    real*8, private,parameter :: G_F = 1.1664e-11,cb=0.9741699d0,alpha=1.0d0/137.0d0
    real*8, private, allocatable :: qrel(:),Qtot(:)
@@ -30,8 +29,8 @@ module mc_module
    integer*4, private, allocatable, save :: allowed_isocomb(:,:)
 contains
 
-subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
-      &  irn_event_in,nwlk_in,xpf_p_in,xpf_n_in,Eshift_in, &
+subroutine mc_init(gen_events_in,i_fg_in,irn_int_in, &
+      &  irn_event_in,nwlk_in,xpf_in,Eshift_in, &
       &  mlept_in,xA_in,nZ_in,CC_in)
    use mathtool
    use event_module
@@ -40,20 +39,17 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
 
    integer*8 :: irn_int_in(nwlk_in),irn_event_in(nwlk_in)
    integer*4 :: nZ_in,xA_in,i_fg_in,i,j,ne0,ien,nwlk_in
-   integer*4 :: gen_events_in,ipot,isospin_in
-   real*8 :: xpf_p_in,xpf_n_in,mlept_in,hp,he,thetalept_in,dummy,xsec_acc_in
+   integer*4 :: gen_events_in,ipot
+   real*8 :: xpf_in,mlept_in,hp,he,dummy
    real*8 :: Eshift_in
    real*8,allocatable :: wq(:),wQtot(:)
    real*8 :: dqrel,dqtot
    logical :: CC_in
-
    
    gen_events=gen_events_in
-   xsec_acc=xsec_acc_in
    nwlk=nwlk_in
    mlept=mlept_in
-   xpf_p=xpf_p_in
-   xpf_n=xpf_n_in
+   xpf=xpf_in
    Eshift=Eshift_in
    xA=xA_in
    nZ=nZ_in
@@ -77,14 +73,13 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
          write(6,*)'Computing EM Current cross section'
       endif
       !Enumerate all initial/final isospins
-      iso_configs = 6
-      allocate(allowed_isocomb(6,4))
+      iso_configs = 5
+      allocate(allowed_isocomb(5,4))
       allowed_isocomb(1,:) = [1,2,1,2]
-      allowed_isocomb(2,:) = [1,2,2,1]
-      allowed_isocomb(3,:) = [2,2,2,2]
-      allowed_isocomb(4,:) = [1,1,1,1]
-      allowed_isocomb(5,:) = [2,1,2,1]
-      allowed_isocomb(6,:) = [2,1,1,2]
+      allowed_isocomb(2,:) = [1,1,1,1]
+      allowed_isocomb(3,:) = [2,1,1,2]
+      allowed_isocomb(4,:) = [2,1,2,1]
+      allowed_isocomb(5,:) = [1,2,2,1]
    endif
 
    xmn = (mn + mp)/2.0d0
@@ -136,8 +131,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
       if(myrank().eq.0) write(6,*) 'norm1 tot = ', norm1
       if(myrank().eq.0) write(6,*) 'norm0 tot = ', norm0
 
-      dp1=dp1/norm1*(4.0d0*pi*xpf_p**3/3.0d0)**2
-      dp0=dp0/norm0*(4.0d0*pi*xpf_p**3/3.0d0)**2
+      dp1=dp1/norm1*(4.0d0*pi*xpf**3/3.0d0)**2
+      dp0=dp0/norm0*(4.0d0*pi*xpf**3/3.0d0)**2
 
       norm1=0.0d0 
       norm0=0.0d0 
@@ -148,13 +143,12 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
          enddo
       enddo
    else 
-
       if(myrank().eq.0) write(6,*)'You should not be using the FG with this code, try again!'
-      if(myrank().eq.0) write(6,*)'Try the code without the _qQ extension'
+      if(myrank().eq.0) write(6,*)'Try the other code without the _qQ extension'
       stop
       np = 2*np0
       allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
-      hp=xpf_p/dble(np)
+      hp=xpf/dble(np)
       do i=1,np
          p(i)=dble(i-0.5d0)*hp 
          do j=1,np
@@ -176,9 +170,9 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
          enddo
       enddo 
       if(myrank().eq.0) write(6,*) 'norm tot = ', norm
-      dp=dp/norm*(4.0d0*pi*xpf_p**3/3.0d0)**2
-      dp1=dp1/norm1*(4.0d0*pi*xpf_p**3/3.0d0)**2
-      dp0=dp0/norm0*(4.0d0*pi*xpf_p**3/3.0d0)**2
+      dp=dp/norm*(4.0d0*pi*xpf**3/3.0d0)**2
+      dp1=dp1/norm1*(4.0d0*pi*xpf**3/3.0d0)**2
+      dp0=dp0/norm0*(4.0d0*pi*xpf**3/3.0d0)**2
 
       norm=0.0d0
       norm1=0.0d0 
@@ -192,10 +186,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
       enddo  
    endif
 
-
    if(myrank().eq.0) write(6,*) 'norm1 tot =' , norm1
    if(myrank().eq.0) write(6,*) 'norm0 tot =' , norm0
-
 
    open(10, file='rho_1.dat')
    read(10,*) np_del
@@ -203,12 +195,11 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    do i=1,np_del
       read(10,*) pdel(i),pot_del(i)
    enddo
-   close(10)
 
    
 end subroutine
 
-subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
+subroutine mc_eval(Enu, qval_in, thetaprot_in, phiprot_in, w_in, xsec_tot, xsec_err_tot, my_events)
    use event_module
    use mathtool
    use dirac_matrices
@@ -226,7 +217,7 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
    integer*4 :: nsamples_tmp
 
    real*8 :: emax,ee,nk(np,np),nk_norm
-   real*8 :: Enu,qval,sig,thetalept_in
+   real*8 :: Enu,sig,qval_in,thetaprot_in,phiprot_in,w_in
    real*8 :: pmu,costheta_p,res,q2_p,np1
    real*8 :: enu_max,henu,r_avg,r_err, test_xsec_tot, test_xsec_tot_err
    
@@ -240,10 +231,10 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
 
    converged = .false.
 
-   thetalept = thetalept_in
-
-   wmax=Enu-mlept
-   q2max_c=2.0d0*Enu**2-mlept**2+2.0d0*Enu*sqrt(Enu**2-mlept**2)
+   qval = qval_in
+   thetaprot = thetaprot_in * pi/180.0d0
+   phiprot = phiprot_in * pi/180.0d0
+   w=w_in
 
    r_avg=0.0d0
    r_err=0.0d0
@@ -252,34 +243,26 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
    i_avg_tot=0
    i_acc_tot=0
    g_o=0.0d0
+   xsec_tot = 0.0d0 
+   xsec_err_tot = 0.0d0
    maximum_weight=0.0d0
 
    call progress_init(gen_events,1.0d0)
-      
-   if(wmax.le.0) then 
-      return
-   endif
 
-   !Initialize integrator to a random start point
-   call mc_random_startpoint(g_o,i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o)
-
-   !Pick random start values for xsec and err (these don't matter)
-   xsec = 10.0d0 
-   xsec_err = 100.0d0
-   xsec_tot = 10.0d0 
-   xsec_err_tot = 100.0d0
    iv=1
 
-   call MPI_Barrier(mpi_comm_world,ierror)
+   !Initialize integrator to a random start point
+   call mc_random_startpoint(g_o,i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o)
 
+   call MPI_Barrier(mpi_comm_world,ierror)
    
    !Compute total cross section to necessary precision
    do while (converged.eqv..false.)
       do j=1,nwlk
          call setrn(irn_int(j))
-         call mc_step(i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j),g_o(j),i_acc)
+         call mc_step(i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),g_o(j),i_acc)
          if(iv.ge.neq.and.mod(iv,nvoid).eq.0) then 
-            call mc_calculate_xsec(Enu,i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j), &
+            call mc_calculate_xsec(Enu,i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j), &
                &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.false.)
          endif
          call getrn(irn_int(j))
@@ -299,7 +282,7 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
             write(6,'("xsec = ",ES24.16,", err = ",F12.6,"%")') &
             &  wmean, 100.0d0*xsec_err_tmp/wmean
 
-            if(100.0d0*xsec_err_tmp/wmean.lt.1.0d0) then 
+            if(100.0d0*xsec_err_tmp/wmean.lt.0.1d0) then 
                converged = .true.
             endif
          endif
@@ -342,7 +325,7 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
    call maxallr1(maximum_weight,global_max_weight)
    if(myrank().eq.0) print*,'global max weight = ', global_max_weight
    !Safety factor
-   maximum_weight = global_max_weight*2.0d0
+   maximum_weight = global_max_weight*2.5d0
    if(myrank().eq.0) print*,'reweighted global max weight = ', maximum_weight
    my_events%max_weight = maximum_weight
    call MPI_Barrier(mpi_comm_world,ierror)
@@ -352,9 +335,9 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
    do while(my_events%size.lt.gen_events)
       do j=1,nwlk 
          call setrn(irn_event(j))
-         call mc_step(i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j),g_o(j),i_acc)
+         call mc_step(i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),g_o(j),i_acc)
          if(iv.ge.neq.and.mod(iv,nvoid).eq.0) then 
-            call mc_calculate_xsec(Enu,i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j),w_o(j), &
+            call mc_calculate_xsec(Enu,i1_o(j),i2_o(j),i1p_o(j),i2p_o(j),j1_o(j),j2_o(j), &
                &  g_o(j),i_avg,my_events,maximum_weight,r_avg,r_err,.true.)
          endif
          call getrn(irn_event(j))
@@ -373,12 +356,13 @@ subroutine mc_eval(Enu, thetalept_in, xsec_tot, xsec_err_tot, my_events)
 end subroutine
 
 !Here we pick a random starting point for our MCMC
-subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
+subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2)
    integer*4 :: i
+   !real*8,intent(in) :: nk(np,np),nk_norm
    real*8 :: nk(np,np), nk_norm
    integer*4,intent(out) :: j1(nwlk),j2(nwlk),i1(nwlk),i2(nwlk),i1p(nwlk),i2p(nwlk)
-   real*8,intent(out) :: w(nwlk),g(nwlk)
-   integer*4 :: isocomb(4,nwlk)
+   real*8,intent(out) :: g(nwlk)
+   integer*4 :: isocomb(4,nwlk) 
    
    do i=1,nwlk
       call setrn(irn_int(i))
@@ -392,14 +376,12 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
          i1p(i) = isocomb(3,i)
          i2p(i) = isocomb(4,i)
 
-         w(i)=wmax*ran()
-
          if(mod(i1(i)+i2(i),2).eq.0) then
             call g_eval(qrel(j1(i)),qtot(j2(i)),dp1(j1(i),j2(i)), &
-               &  wmax,norm1,g(i))
+               &  norm1,g(i))
          else
             call g_eval(qrel(j1(i)),qtot(j2(i)),dp0(j1(i),j2(i)), &
-               &  wmax,norm0,g(i))
+               &  norm0,g(i))
          endif
 
       enddo
@@ -408,19 +390,19 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,w)
 end subroutine mc_random_startpoint
 
 !Here we take a random MCMC step
-subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc)
+subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,g_o,i_acc)
+   use mympi
    integer*4 :: j1_n,j2_n,i1_n,i2_n,i1p_n,i2p_n
    real*8 :: nk(np,np), nk_norm
    integer*4,intent(inout) :: i_acc
    integer*4,intent(inout) :: j1_o,j2_o,i1_o,i2_o,i1p_o,i2p_o
    integer*4 :: isocomb(4)
-   real*8 :: q2_n,w_n,g_n
-   real*8,intent(inout) :: w_o,g_o
+   real*8 :: q2_n,g_n
+   real*8,intent(inout) ::g_o
 
    j1_n=nint(j1_o+0.05d0*nqrel*(-1.0d0+2.0d0*ran()))
    j2_n=nint(j2_o+0.05d0*nqtot*(-1.0d0+2.0d0*ran()))
    if(j1_n.le.nqrel.and.j1_n.ge.1.and.j2_n.le.nqtot.and.j2_n.ge.1) then
-      w_n=wmax*ran()
 
       isocomb(:) = allowed_isocomb(randint(iso_configs),:)
       i1_n = isocomb(1)
@@ -430,10 +412,10 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc)
 
       if(mod(i1_n+i2_n,2).eq.0) then 
          call g_eval(qrel(j1_n),qtot(j2_n),dp1(j1_n,j2_n), &
-         &  wmax,norm1,g_n)
+         &  norm1,g_n)
       else
          call g_eval(qrel(j1_n),qtot(j2_n),dp0(j1_n,j2_n), &
-         &  wmax,norm0,g_n)
+         &  norm0,g_n)
       endif
 
    else
@@ -446,32 +428,31 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,w_o,g_o,i_acc)
       i2_o=i2_n  
       i1p_o=i1p_n  
       i2p_o=i2p_n
-      !q2_o=q2_n
-      w_o=w_n
       g_o=g_n
       i_acc=i_acc+1
    endif
 end subroutine mc_step
 
 !Here we compute the corresponding cross section and get the weight and add the event to the output
-subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
+subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,g,i_avg,events,max_weight,r_avg,r_err,eventgen)
    real*8 :: nk(np,np)
    type(event_container_t), intent(inout) :: events
    type(event_t) :: event 
    logical :: eventgen
    integer*4,intent(in) :: j1,j2,i1,i2,i1p,i2p
    integer*4,intent(inout):: i_avg
-   real*8,intent(in) :: w,g,Enu
+   !real*8,intent(in) :: q2,w,g,Enu
+   real*8,intent(in) :: g,Enu
    real*8,intent(inout) :: max_weight,r_avg,r_err
    real*8 :: ratio,f,r,p1,p2
 
    call event_init(event,numPart=6)
 
    if(mod(i1+i2,2).eq.0) then 
-      call f_eval(w,i1,i2,i1p,i2p,qrel(j1),qtot(j2),xpf_p,xpf_p,dp1(j1,j2),&
+      call f_eval(i1,i2,i1p,i2p,qrel(j1),qtot(j2),dp1(j1,j2),&
       &  Enu,f,event)
    else
-      call f_eval(w,i1,i2,i1p,i2p,qrel(j1),qtot(j2),xpf_p,xpf_p,dp0(j1,j2),&
+      call f_eval(i1,i2,i1p,i2p,qrel(j1),qtot(j2),dp0(j1,j2),&
       &  Enu,f,event)
    endif
 
@@ -482,7 +463,9 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight
 
    if(ABS(f).ge.max_weight) then
       if(eventgen.eqv..true.) then
-         print*,'w_i > w_max. This should never happen!'
+         print*,'w_i(',f,') > w_max(',max_weight,'). This should never happen!'
+         call print_event(event,6)
+         stop
       endif 
       !Handle negative weights
       max_weight = ABS(f) 
@@ -509,19 +492,19 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,w,g,i_avg,events,max_weight
 end subroutine mc_calculate_xsec
 
 !Evaluate the cross section at fixed kinematics
-subroutine f_eval(w,i1,i2,i1p,i2p,qrel_mag,qtot_mag,xpf1,xpf2,np1,enu_v,f,my_event_in)
+subroutine f_eval(i1,i2,i1p,i2p,qrel_mag,qtot_mag,np1,enu_v,f,my_event_in)
    use event_module
    use mathtool
    use mympi
    use dirac_matrices
    implicit none
    integer*4 :: fg,ip,il,i1,i2,i1p,i2p
-   real*8 :: emu,w,pmu,cos_theta,sin_theta
-   real*8 :: xpf1,xpf2
+   real*8 :: emu,pmu,cos_theta,sin_theta
    real*8 :: qrel_mag, qtot_mag
    real*8 :: p2_3(3),p1_3(3),qrel_3(3),qtot_3(3)
    real*8 :: qrel_ct,qrel_st,qrel_phi,qtot_ct,qtot_st,qtot_phi
-   real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,qval,q2
+   real*8 :: phipp1,ctpp1,p2,ctp2,phip2,pj1,pj2,ctp1,phip1
+   real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,q2
    real*8 :: v_ll,v_t,sig0,sig 
    real*8 :: Vcc,Vcl,Vll,Vt,Vl,Vlt,Vtt,Vct,Vclt,Rcc,Rcl,Rll,Rt,Rl,Rlt,Rtt,Rct,Rclt
    real*8 :: lambda, deltasq, rho, tau, kappa, tan2tilde, nu0
@@ -532,9 +515,8 @@ subroutine f_eval(w,i1,i2,i1p,i2p,qrel_mag,qtot_mag,xpf1,xpf2,np1,enu_v,f,my_eve
 
    emu = enu_v-w
    pmu = sqrt(emu**2-mlept**2)
-   cos_theta = cos(thetalept)
-   q2 = 2.0d0*enu_v*(emu - pmu*cos_theta) - mlept**2
-
+   q2 = qval**2 - w**2
+   cos_theta = (2*emu*enu_v - (q2 + mlept**2))/(2*enu_v*pmu) 
    sin_theta = sqrt(1.0d0 - cos_theta**2)
 
    if (abs(cos_theta).gt.1.0d0) then
@@ -582,16 +564,16 @@ subroutine f_eval(w,i1,i2,i1p,i2p,qrel_mag,qtot_mag,xpf1,xpf2,np1,enu_v,f,my_eve
    Vclt = rho*Vct
 
 
-   !.....compute sigma_mott [ fm^2 --> bb ]
+   !.....compute sigma_mott [ fm^2 --> nb ]
    if(CC.eqv..true.) then
      sig0=1.e7*(G_F*cb)**2 /(4.0d0*pi**2)*pmu*emu/2.0d0 * hbarc**2
 
    else
-      !.....compute sigma_mott [ fm^2 --> nb ]
+      !.....compute sigma_mott [ fm^2 --> mb --> nb ]
       !If using response functions
+      !sig0=1.e7*hbarc**2 * alpha**2 /(q2**2) * pmu/enu_v * nu0
       !sig0=alpha**2/2.0d0/(1.0d0-cos_theta)/eef**2/tan2
       !sig0=1.e9*sig0*10.0d0
-      !sig0=1.e7*hbarc**2 * alpha**2 /(q2**2) * pmu/enu_v * nu0
 
       !If doing contraction
       sig0=1.e7*hbarc**2 * alpha**2 * (emu**2) /q2**2 
@@ -622,12 +604,11 @@ subroutine f_eval(w,i1,i2,i1p,i2p,qrel_mag,qtot_mag,xpf1,xpf2,np1,enu_v,f,my_eve
    q=probeP4-outlepP4
 
    !Evaluate the hadronic tensor
-   call int_eval(probeP4,outlepP4,p2_3, &
-      &  p1_3,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
-      &  i1,i2,i1p,i2p,xpf1,xpf2)
+   call int_eval(probeP4,outlepP4,phiprot,cos(thetaprot),p2_3,p1_3,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
+      &  i1,i2,i1p,i2p)
 
-   !We sample 3 phi angles, and 3 cosines
-   r_now=r_now*2.0d0**3*(2.0d0*pi)**3!
+   !I integrate over 2phis and 2 cosines
+   r_now=r_now*2.0d0**2*(2.0d0*pi)**2
 
    Rcc = r_now(1,1)
    Rcl = 0.5d0*(r_now(1,4) + r_now(4,1))
@@ -638,14 +619,15 @@ subroutine f_eval(w,i1,i2,i1p,i2p,qrel_mag,qtot_mag,xpf1,xpf2,np1,enu_v,f,my_eve
    Rct = r_now(1,2) + r_now(2,1)
    Rlt = lambda/kappa * Rct
    Rclt = Rct
+
    !Initializes lepton spinors
    call lept_tens(lept_now)
 
    call contract(r_now,lept_now,ampsq)
 
    sig=sig0*(real(ampsq))
-   !sig=sig0*real(Vcc*Rcc - 2.0d0*Vcl*Rcl +Vll*Rll + Vt*Rt)
-   f=sig!*jac_c
+   !sig=sig0*real(Vcc*Rcc - 2.0d0*Vcl*Rcl +Vll*Rll + Vt*Rt + Vtt*Rtt)
+   f=sig
 
    my_particles(1)%p4 = probeP4   
    if(CC.eqv..true.) then 
@@ -671,18 +653,20 @@ subroutine f_eval(w,i1,i2,i1p,i2p,qrel_mag,qtot_mag,xpf1,xpf2,np1,enu_v,f,my_eve
    return
 end subroutine f_eval
 
-subroutine int_eval(kprobe_4,klept_4,p2,p1, &
-      &  w,q_4,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
-      &  i1,i2,i1p,i2p,xpf1,xpf2)
+subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2, &
+      &  p1,q_4,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
+      &  i1,i2,i1p,i2p)
    use dirac_matrices         
    use mathtool
    implicit none
    integer*4 :: i,j,i1,i2,i1p,i2p
    real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6,xmad=950.0d0
-   real*8, parameter :: fstar=2.15d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
-   real*8 :: w,p2(3),p1(3),q(4),qrel_mag,qtot_mag
-   real*8 :: q2,rhop,rhon,rho,norm,gep,np1
+   real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
+   real*8 :: phipp1,ctpp1,stpp1,ctp2,phip2,ctp1,phip1,stp1,stp2
+   real*8 :: pp1,den,jac,q(4),p2(3),p1(3),qrel_mag,qtot_mag
+   real*8 :: q2,rho,norm,gep,np1
    real*8 :: ca4,ca5,ca6,cv3,cv4,cv5,cV(3),cA(3)
+   real*8 :: at,vt,bt,arg,par1,par2
    real*8 :: p1_4(4),p2_4(4),pp1_4(4),pp2_4(4),k2_4(4),k1_4(4),q_4(4),pp_4(4)
    real*8 :: k2e_4(4),k1e_4(4),kprobe_4(4),klept_4(4)
    real*8 :: pp1_4cm(4),pp2_4cm(4),phipp1_cm,ctpp1_cm
@@ -696,9 +680,11 @@ subroutine int_eval(kprobe_4,klept_4,p2,p1, &
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2
    real*8 :: nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
-   real*8 :: xpf1,xpf2
 
-   !Ok I can define p1,p2 fourvectors
+   !Get sin theta for initial state nucleons and final nucleon 1
+   stpp1=sqrt(1.0d0-ctpp1**2)
+
+   !Ok I have defined p1 and p2
    p1_4(2)=p1(1)
    p1_4(3)=p1(2)
    p1_4(4)=p1(3)
@@ -708,7 +694,6 @@ subroutine int_eval(kprobe_4,klept_4,p2,p1, &
 
    p1_4(1) = sqrt(sum(p1_4(2:4)**2) + xmn**2)
    p2_4(1) = sqrt(sum(p2_4(2:4)**2) + xmn**2)
-
 
    q2=q_4(1)**2 - sum(q_4(2:4)**2)
    if(i_fg.eq.1) then
@@ -724,74 +709,75 @@ subroutine int_eval(kprobe_4,klept_4,p2,p1, &
       return                                                                                    
    endif
 
-   !Compute the total energy and momentum in lab frame
-   E_tot = p1_4(1) + p2_4(1) + q_4(1)! + 40.0d0
-   p_tot = p1_4(2:4) + p2_4(2:4) + q_4(2:4)
-   p_totmag = sqrt(sum(p_tot(1:3)**2))
+   !.... solve the energy conserving delta-function
+   pp_4(:)=p1_4(:)+p2_4(:)+q_4(:)
 
 
-   !Check that we have enough energy to create the two final state particles
-   if((E_tot**2 - p_totmag**2 - 4.0d0*xmn**2).lt.0.0d0) then 
-      r_now = czero
+   at=(pp_4(1)**2-sum(pp_4(2:4)**2))/2.0d0/pp_4(1)
+   vt=(pp_4(2)*stpp1*cos(phipp1) + pp_4(3)*stpp1*sin(phipp1) +pp_4(4)*ctpp1)/pp_4(1) 
+   bt=1.0d0-vt**2   
+   arg=at**2-bt*xmn**2
+   if(arg.lt.0.0d0) then
+      r_now=0.0d0
+      return
+   endif   
+   pp1=(at*vt+sqrt(at**2-bt*xmn**2))/bt
+
+   par1=sqrt(pp_4(1)**2-xmn**2)
+!....first condition of the energy conservation relation   
+   if(pp1.gt.par1) then
+      r_now=0.0d0
+      return
+   endif   
+   par2=at+vt*pp1
+!....second condition of the energy conservation relation
+   if(par2.lt.0.0d0) then
+      r_now=0.d0
+      return
+   endif   
+
+   !....Pauli blocking
+   if(pp1.lt.xpf) then   
+      r_now=0.0d0
       return
    endif
 
-   !Now we go to the CM frame of pp1 and pp2 to pick momenta
-   !Choose angles
-   phipp1_cm=2.0d0*pi*ran() 
-   ctpp1_cm=-1.0d0+2.0d0*ran()
-   stpp1_cm = sqrt(1.0d0 - ctpp1_cm**2)
-   !Use lorentz invariance to get pp1_cm(1) and momentum
-   pp1_4cm(1) = 0.5d0*sqrt(E_tot**2 - p_totmag**2)
-   pp1_cm_mag = sqrt(pp1_4cm(1)**2 - xmn**2)
-   pp1_4cm(2) = pp1_cm_mag*stpp1_cm*cos(phipp1_cm)
-   pp1_4cm(3) = pp1_cm_mag*stpp1_cm*sin(phipp1_cm)
-   pp1_4cm(4) = pp1_cm_mag*ctpp1_cm
-   pp2_4cm(2:4) = -pp1_4cm(2:4)
-   pp2_4cm(1) = pp1_4cm(1)
+   !....at this point we can define pp1_4
+   pp1_4(1)=sqrt(pp1**2+xmn**2)
+   pp1_4(2)=pp1*stpp1*cos(phipp1)
+   pp1_4(3)=pp1*stpp1*sin(phipp1)
+   pp1_4(4)=pp1*ctpp1
+   pp2_4(:)=p1_4(:)+p2_4(:)-pp1_4(:)+q_4(:)
+!....Pauli blocking   
+   if(sqrt(sum(pp2_4(2:4)**2)).lt.xpf) then
+     r_now=0.0d0
 
-
-   !Ok now I have 4vecs in cm frame
-   !I want to boost back to lab frame
-   !velocity of cm frame
-   vcm(:) = p_tot(:)/E_tot 
-   vcm_mag = sqrt(sum(vcm(1:3)**2))
-   uhatcm(:) = vcm(:)/vcm_mag
-   gammacm = 1.0d0/sqrt(1 - vcm_mag**2)
-
-   !Lorentz transform
-   pp1_4(2:4) = (gammacm*vcm_mag*pp1_4cm(1) + (gammacm - 1.0d0)*dot_product(pp1_4cm(2:4),uhatcm))*uhatcm(:) + pp1_4cm(2:4)
-   pp2_4(2:4) = (gammacm*vcm_mag*pp2_4cm(1) + (gammacm - 1.0d0)*dot_product(pp2_4cm(2:4),uhatcm))*uhatcm(:) + pp2_4cm(2:4)
-   pp1_4(1) = sqrt(xmn**2 + sum(pp1_4(2:4)**2))
-   pp2_4(1) = sqrt(xmn**2 + sum(pp2_4(2:4)**2))
-
-!....Pauli blocking
-   if(sqrt(sum(pp1_4(2:4)**2)).lt.xpf1) then   
-      r_now=czero
-      return
-   endif        
-
-   if(sqrt(sum(pp2_4(2:4)**2)).lt.xpf2) then
-      r_now=czero
-      return
+     return
    endif
-
-   !Jacobian
-   lorentz_jac = pp1_cm_mag/2.0d0/pp1_4cm(1)
+!....probably this is not necessary, I need to think about it   
+   pp2_4(1)=sqrt(sum(pp2_4(2:4)**2)+xmn**2)  
+   
+   !Now I'm integrating over only 2 angles so my dOmega = 4*pi
 
    !Define energy transfer for currents
-   !q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
+   !if(i_fg.eq.0) then
+   !   q_4(1)= w +0.5d0*(e_gs-e_bg)+xmn-(p1_4(1)+p2_4(1))*0.5d0+20.0d0
+   !endif
    if(q_4(1).lt.0.0d0) then
      r_now=czero
      return
    endif
+
+   !Jacobian
+   den=pp1/pp1_4(1)-sum(pp2_4(2:4)*pp1_4(2:4)/pp1)/pp2_4(1)
+   jac=pp1**2/abs(den)
 
    nuc1P4 = p1_4
    nuc1PP4 = pp1_4
    nuc2P4 = p2_4 
    nuc2PP4 = pp2_4
    !......define constants and ff
-   q2=w**2 - sum(q_4(2:4)**2)
+   !q2=w**2 - qval**2
    gep=1.0d0/(1.0d0-q2/lsq)**2 
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
@@ -804,9 +790,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,p1, &
    cV=(/cv3,cv4,cv5/)
    cA=(/ca4,ca5,ca6/)
 
-   rhop=xpf_p**3/(3.0d0*pi**2)
-   rhon=xpf_n**3/(3.0d0*pi**2)
-   rho = rhop + rhon
+   rho=xpf**3/(1.5d0*pi**2)
 
    had=czero
    j_delta_V=czero
@@ -837,20 +821,20 @@ subroutine int_eval(kprobe_4,klept_4,p2,p1, &
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
    
-      r_now(:,:) =np1*qrel_mag**2*qtot_mag**2 &
-      &  /(2.0d0*pi)**9*(had(:,:))* &
-      &      lorentz_jac/rho*dble(xA)
+      r_now(:,:) =np1*qrel_mag**2*qtot_mag**2/(2.0d0*pi)**9*(had(:,:))* &
+   &      jac/rho*dble(xA)
 
    return
 end subroutine   
 
-subroutine g_eval(qj1,Qj2,gPkE,wmax,gnorm,g)
+subroutine g_eval(qj1,Qj2,gPkE,gnorm,g)
    implicit none
    real*8, parameter :: pi=acos(-1.0d0)
-   real*8 ::qj1,Qj2,gPkE,wmax,g,gnorm
+   real*8 ::qj1,Qj2,gPkE,g,gnorm
    g=(4.0d0*pi)**2*qj1**2*Qj2**2*gPkE
-   g=g/gnorm/wmax/iso_configs !Dividing by the number of isospin configurations consistent with charge conservation
+   g=g/gnorm/iso_configs !Dividing by the number of isospin configurations consistent with charge conservation
    
+    
    return
 end subroutine g_eval
 

@@ -469,5 +469,23 @@ function randint(n) result(k)
   if (k > n) k = n               ! super-safe guard (in case r==1 due to FP)
 end function
 
+subroutine trapz_weights(x, w)
+ implicit none
+ real(kind=r8), intent(in)  :: x(:)
+ real(kind=r8), intent(out) :: w(:)
+ integer :: n, i
+ n = size(x)
+ if (n < 2) stop 'trapz_weights: need >= 2 points'
+ w = 0.0_r8
+ if (n == 2) then
+    w(1) = 0.5*(x(2)-x(1));  w(2) = w(1);  return
+ end if
+ w(1) = 0.5_r8*(x(2)-x(1))
+ w(n) = 0.5_r8*(x(n)-x(n-1))
+ do i = 2, n-1
+    w(i) = 0.5_r8*(x(i+1) - x(i-1))
+ end do
+end subroutine trapz_weights
+
 end module mathtool
     

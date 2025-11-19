@@ -756,7 +756,6 @@ subroutine int_eval(kprobe_4,klept_4,phipp1,ctpp1,p2,ctp2,phip2,p1,ctp1, &
    !Apply current conservation to vector piece of current j_z = j0*w/q
    j_tot_V(:,:,:,:,:,:,:,:,4) = j_tot_V(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
 
-
    j_tot = j_tot_V + j_tot_A
 
    !Sum over spins 
