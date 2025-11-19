@@ -37,7 +37,7 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
     use mympi
     use isospin_op
     implicit none
-    integer*4 :: i,DeltapropFull_in,Deltaprop3half_in
+    integer*4 :: i,DeltapropFull_in,Deltaprop3half_in,DeltaPot_in
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
     logical :: CC_in
 
