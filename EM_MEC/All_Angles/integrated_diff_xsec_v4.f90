@@ -165,6 +165,7 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
    use mathtool
    use dirac_matrices
    use mympi
+   use progress_bar
    implicit none
 
    integer, parameter :: i4=selected_int_kind(9)
@@ -208,6 +209,9 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
    i_acc_tot=0
    g_o=0.0d0
    maximum_weight=0.0d0
+
+   call progress_init(gen_events,1.0d0)
+
    if(wmax.le.0) then 
       return
    endif
@@ -248,9 +252,9 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
             w2mean = xsec_sqsum_tmp / dble(nsamples_tmp)
             xsec_err_tmp = sqrt((w2mean - wmean**2) / dble(nsamples_tmp))
 
-            write(6,'(A,ES24.16,A,F12.6,A)', advance='no') &
-            &  achar(13)//'xsec = ', wmean, ', err = ', 100.0d0*xsec_err_tmp/wmean, '%'
-            call flush(6)   
+            write(6,'("xsec = ",ES24.16,", err = ",F12.6,"%")') &
+            &  wmean, 100.0d0*xsec_err_tmp/wmean
+
             if(100.0d0*xsec_err_tmp/wmean.lt.0.5d0) then 
                converged = .true.
             endif
@@ -310,7 +314,7 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
       enddo
 
       if(myrank().eq.0) then
-         call update_progress_bar(my_events%size, gen_events)
+         call progress_update(my_events%size)
       endif
       iv = iv+1
    enddo
@@ -751,7 +755,7 @@ subroutine g_eval(pj1,pj2,gPkE,wmax,q2max,q2min,gnorm,g)
    real*8, parameter :: pi=acos(-1.0d0)
    real*8 ::pj1,pj2,gPkE,wmax,g,gnorm,q2max,q2min,q2range
    g=(4.0d0*pi)**2*pj1**2*pj2**2*gPkE
-   
+
    q2range = q2max-q2min
    g=g/gnorm/wmax/q2range/iso_configs !Dividing by the number of isospin configurations consistent with charge conservation
     
@@ -778,27 +782,6 @@ subroutine SummedSquareMatrix(had, inJdag,inJ,ti1,ti2,tf1,tf2)
       enddo
    enddo
 end subroutine SummedSquareMatrix
-
-subroutine update_progress_bar(current_step, total_steps)
-          integer*4, intent(in) :: current_step, total_steps
-          real*8 :: percent_done
-          integer*4 :: bar_width, num_hashes
-
-          ! Calculate the progress percentage
-          percent_done = real(current_step) / real(total_steps) * 100.0
-
-          ! Calculate the number of hashes to display in the progress bar
-          bar_width = 100
-          num_hashes = int(percent_done * real(bar_width) / 100.0)
-
-          ! Clear the line and print the progress bar
-          write(*, "('Progress: [', A, A, '] ', F3.0, '%')", advance="no") &
-            repeat("=", num_hashes), repeat(" ", bar_width - num_hashes), percent_done
-          ! Move the cursor to the beginning of the line
-          write(*, '(A1)', advance="no") char(13)
-          
-
-      end subroutine update_progress_bar
 
 function isolabel2pdg(isoin) result(pdgout)
    integer*4 :: isoin, pdgout

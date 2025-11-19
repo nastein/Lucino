@@ -41,10 +41,9 @@ program ew_eventgen
       read(5,*) gen_events
       read(5,*) nwlk
       read(5,*) enu 
-      read(5,*) xsec_acc
       read(5,*) xpf
       read(5,*) Eshift
-      read(5,*) DeltaPropReal
+      read(5,*) DeltaPropFull
       read(5,*) DeltaProp3half
       read(5,*) DeltaPot
       read(5,*) nZ,xA
@@ -63,7 +62,7 @@ program ew_eventgen
       else
          FG_string = 'SF'
       endif
-      write(fname,'(A,A,A,A,A,I0,A)') 'test_',trim(int_string) &
+      write(fname,'(A,A,A,A,A,I0,A)') 'test_qQ_',trim(int_string) &
       &  ,'_',trim(FG_string),'_Ebeam_', int(enu),'.out'
       
       if (myrank().eq.0) then
@@ -82,7 +81,6 @@ program ew_eventgen
    call bcast(enu)
    call bcast(seeds(1))
    call bcast(seeds(2))
-   call bcast(xsec_acc)
    call bcast(ilept)
    call bcast(xpf)
    call bcast(Eshift)

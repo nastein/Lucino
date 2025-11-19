@@ -598,26 +598,26 @@ subroutine f_eval(w,i1,i2,i1p,i2p,qrel_mag,qtot_mag,xpf1,xpf2,np1,enu_v,f,my_eve
    endif 
 
    !Fix lepton kinematics (choose x-z plane and q along z)
-   probeP4(1) = enu_v
-   probeP4(2) = enu_v*pmu*sin_theta/qval
-   probeP4(3) = 0.0d0
-   probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
-
-   outlepP4(1) = emu 
-   outlepP4(2) = enu_v*pmu*sin_theta/qval
-   outlepP4(3) = 0.0d0
-   outlepP4(4) = probeP4(4) - qval
-
-   !Changed so that neutrino is along z direction
    !probeP4(1) = enu_v
-   !probeP4(2) = 0.0d0
+   !probeP4(2) = enu_v*pmu*sin_theta/qval
    !probeP4(3) = 0.0d0
-   !probeP4(4) = enu_v
+   !probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
 
    !outlepP4(1) = emu 
-   !outlepP4(2) = pmu*sin_theta
+   !outlepP4(2) = enu_v*pmu*sin_theta/qval
    !outlepP4(3) = 0.0d0
-   !outlepP4(4) = pmu*cos_theta
+   !outlepP4(4) = probeP4(4) - qval
+
+   !Changed so that neutrino is along z direction
+   probeP4(1) = enu_v
+   probeP4(2) = 0.0d0
+   probeP4(3) = 0.0d0
+   probeP4(4) = enu_v
+
+   outlepP4(1) = emu 
+   outlepP4(2) = pmu*sin_theta
+   outlepP4(3) = 0.0d0
+   outlepP4(4) = pmu*cos_theta
 
    q=probeP4-outlepP4
 
