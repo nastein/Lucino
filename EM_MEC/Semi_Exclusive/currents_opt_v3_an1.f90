@@ -311,7 +311,7 @@ subroutine det_Jpi()
       J_pl2_V(:,:,mu)=czero
 
       J_pif_A(:,:,mu)=czero
-      J_sea1_A(:,:,mu)=ax*frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
+      J_sea1_A(:,:,mu)=-ax*frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
       J_sea2_A(:,:,mu)=ax*frho2/ga*gamma_mu(:,:,mu)!/fpik1**2
       J_pl1_A(:,:,mu)=ax*frho1/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
       J_pl2_A(:,:,mu)=-ax*frho2/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)

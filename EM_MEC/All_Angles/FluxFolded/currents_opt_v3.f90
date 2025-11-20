@@ -284,6 +284,10 @@ subroutine had_current_init(p1_in,p2_in,pp1_in,pp2_in)
     Pi_k1(:,:)=matmul(gamma_mu(:,:,5),k1_sl(:,:))/(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)
     Pi_k2(:,:)=matmul(gamma_mu(:,:,5),k2_sl(:,:))/(k2(1)**2-sum(k2(2:4)**2)-xmpi**2)
 
+
+    !Pi_k1(:,:)=-2.0d0*xmn*gamma_mu(:,:,5)/(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)
+    !Pi_k2(:,:)=-2.0d0*xmn*gamma_mu(:,:,5)/(k2(1)**2-sum(k2(2:4)**2)-xmpi**2)
+
 end subroutine
 
 subroutine det_Jpi()
@@ -291,16 +295,16 @@ subroutine det_Jpi()
    integer*4 :: mu
    real*8 :: fpik1,fpik2,frho1,frho2,fact
    real*8 :: k1sq,k2sq,qsq
-   k1sq = k1(1)**2 - dot_product(k1(2:4),k1(2:4))
-   k2sq = k2(1)**2 - dot_product(k2(2:4),k2(2:4))
-   qsq = q(1)**2 - dot_product(q(2:4),q(2:4))
+   k1sq = scalarprod(k1,k1)
+   k2sq = scalarprod(k2,k2)
+   qsq = scalarprod(q,q)
 
    fpik1=(lpi**2-xmpi**2)/(lpi**2-k1sq)
    fpik2=(lpi**2-xmpi**2)/(lpi**2-k2sq)
    frho1=1.0d0/(1.0d0-(k1sq)/xmrho**2)
    frho2=1.0d0/(1.0d0-(k2sq)/xmrho**2)
    !...this factor is needed to fulfill current conservation, see A3 Dekker
-   fact=(k1sq-xmpi**2)*(k2(1)**2-sum(k2(2:4)**2)-xmpi**2) &
+   fact=(k1sq-xmpi**2)*(k2sq-xmpi**2) &
         & *(1.0d0/(k1sq-xmpi**2)/(k2sq-xmpi**2) &
         & - 1.0d0/(k1sq-xmpi**2)/(lpi**2-k1sq) &
         & - 1.0d0/(k2sq-xmpi**2)/(lpi**2-k2sq))
@@ -312,7 +316,7 @@ subroutine det_Jpi()
       J_pl2_V(:,:,mu)=czero
 
       J_pif_A(:,:,mu)=czero
-      J_sea1_A(:,:,mu)=ax*frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
+      J_sea1_A(:,:,mu)=-ax*frho1/ga*gamma_mu(:,:,mu)!/fpik2**2
       J_sea2_A(:,:,mu)=ax*frho2/ga*gamma_mu(:,:,mu)!/fpik1**2
       J_pl1_A(:,:,mu)=ax*frho1/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
       J_pl2_A(:,:,mu)=-ax*frho2/ga*q(mu)*q_sl(:,:)/(qsq-xmpi**2)
@@ -625,7 +629,7 @@ subroutine JDelta(janti_V,janti_A)
     j2121_A=czero
 
     call had_current_init(p1_,p2_,pp1_,pp2_)
-    call JDeltaFixed(j1212_V,J1212_A)
+    call JDeltaFixed(j1212_V,j1212_A)
 
     !call had_current_init(p2_,p1_,pp1_,pp2_)
     !call JDeltaFixed(j2112_V,J2112_A)
