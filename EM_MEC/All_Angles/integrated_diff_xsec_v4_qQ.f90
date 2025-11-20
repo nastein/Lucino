@@ -189,11 +189,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
       enddo  
    endif
 
-
    if(myrank().eq.0) write(6,*) 'norm1 tot =' , norm1
    if(myrank().eq.0) write(6,*) 'norm0 tot =' , norm0
-
-
 
    open(10, file='rho_1.dat')
    read(10,*) np_del

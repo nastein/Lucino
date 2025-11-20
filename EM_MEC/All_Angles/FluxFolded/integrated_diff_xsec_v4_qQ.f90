@@ -1,7 +1,7 @@
 module mc_module
    use event_module
    implicit none 
-   integer*4, private, save :: xA,nZ,i_fg,np,ne,nwlk,gen_events,isospin,nenu
+   integer*4, private, save :: xA,nZ,i_fg,np,ne,nwlk,gen_events,isospin,nenu,nqrel,nqtot
    complex*16, private, parameter :: czero = (0.0d0,0.0d0)
    complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
    complex*16, private, parameter :: ci    = (0.0d0,1.0d0)
@@ -17,6 +17,7 @@ module mc_module
    !real*8, private, save:: wmax,q2max,q2min
    real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0,ppmax=1.0d0*1.e3
    real*8, private,parameter :: G_F = 1.1664e-11,cb=0.9741699d0,alpha=1.0d0/137.0d0
+   real*8, private, allocatable :: qrel(:),Qtot(:)
    real*8, private, allocatable :: pv(:),p(:),dp(:,:),ep(:),dp1(:,:),dp0(:,:)
    real*8, private, allocatable :: kin(:),pot(:),pdel(:),pot_del(:)
    real*8, parameter :: mp=938.272d0,mn=939.565d0, &
@@ -43,6 +44,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    integer*4 :: gen_events_in,ipot,isospin_in
    real*8 :: xpf_in,mlept_in,hp,he,thetalept_in,dummy,xsec_acc_in
    real*8 :: Eshift_in
+   real*8,allocatable :: wq(:),wQtot(:)
+   real*8 :: dqrel,dqtot
    logical :: CC_in
    
    gen_events=gen_events_in
@@ -90,24 +93,64 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    irn_event(:) = irn_event_in(:)
 
    if(i_fg.ne.1) then
-      open(unit=8,file='n2b_c12_new_fmt.dat',status='unknown',form='formatted')
-      read(8,*) np
-      allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
-      do i=1,np
-         do j=1,np
-           read(8,*) p(i),p(j),dp(i,j),dp1(i,j),dp0(i,j)
+      if(myrank().eq.0) write(6,*)'Using (q,Q) Spectral Function'
+      open(unit=8,file='C12_rho2b_qQ.txt',status='unknown',form='formatted')
+      read(8,*) nqrel,nqtot
+      allocate(qrel(nqrel),qtot(nqtot),dp1(nqrel,nqtot),dp0(nqrel,nqtot))
+      !Table rows are 
+      !(qrel1, qtot1) 
+      !.
+      !.
+      !qrelN, qtot1
+      !qrel1, qtot2
+      do i=1,nqtot
+         do j=1,nqrel
+           read(8,*) qrel(j),qtot(i),dp0(j,i),dp1(j,i)
          enddo  
       enddo
       close(8)
-      
-      p=p*hbarc
-      dp=dp/hbarc**6
+
+      !Convert to MeV and divide out by (2pi)^6 normalizaion
+      qrel=qrel*hbarc
+      qtot=qtot*hbarc
       dp1=dp1/hbarc**6
       dp0=dp0/hbarc**6
-      dp=dp/(2.0d0*pi)**6
       dp1=dp1/(2.0d0*pi)**6
       dp0=dp0/(2.0d0*pi)**6
+
+      !Bin widths aren't uniform, use trapezoidal integration
+      allocate(wq(nqrel), wQtot(nqtot))
+      call trapz_weights(qrel, wq)
+      call trapz_weights(qtot, wQtot)
+
+      norm1=0.0d0 
+      norm0=0.0d0 
+      
+      do i=1,nqrel
+            do j=1,nqtot
+            norm1=norm1+dp1(i,j)*qrel(i)**2*qtot(j)**2*(4.0d0*pi)**2*wq(i)*wQtot(j)
+            norm0=norm0+dp0(i,j)*qrel(i)**2*qtot(j)**2*(4.0d0*pi)**2*wq(i)*wQtot(j)
+         enddo
+      enddo 
+      if(myrank().eq.0) write(6,*) 'norm1 tot = ', norm1
+      if(myrank().eq.0) write(6,*) 'norm0 tot = ', norm0
+
+      dp1=dp1/norm1*(4.0d0*pi*xpf**3/3.0d0)**2
+      dp0=dp0/norm0*(4.0d0*pi*xpf**3/3.0d0)**2
+
+      norm1=0.0d0 
+      norm0=0.0d0 
+      do i=1,nqrel
+         do j=1,nqtot
+            norm1=norm1+dp1(i,j)*qrel(i)**2*qtot(j)**2*(4.0d0*pi)**2*wq(i)*wQtot(j)
+            norm0=norm0+dp0(i,j)*qrel(i)**2*qtot(j)**2*(4.0d0*pi)**2*wq(i)*wQtot(j)
+         enddo
+      enddo
    else 
+
+      if(myrank().eq.0) write(6,*)'You should not be using the FG with this code, try again!'
+      if(myrank().eq.0) write(6,*)'Try the code without the _qQ extension'
+      stop
       np = 2*np0
       allocate(p(np),dp(np,np),dp1(np,np),dp0(np,np))
       hp=xpf/dble(np)
@@ -119,37 +162,37 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
             dp0(i,j)=1.0d0
          enddo
       enddo
-   endif
-   
 
-   norm=0.0d0
-   norm1=0.0d0 
-   norm0=0.0d0 
-   
-   do i=1,np
+      norm=0.0d0
+      norm1=0.0d0 
+      norm0=0.0d0 
+      
+      do i=1,np
+            do j=1,np
+            norm=norm+dp(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
+            norm1=norm1+dp1(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
+            norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
+         enddo
+      enddo 
+      if(myrank().eq.0) write(6,*) 'norm tot = ', norm
+      dp=dp/norm*(4.0d0*pi*xpf**3/3.0d0)**2
+      dp1=dp1/norm1*(4.0d0*pi*xpf**3/3.0d0)**2
+      dp0=dp0/norm0*(4.0d0*pi*xpf**3/3.0d0)**2
+
+      norm=0.0d0
+      norm1=0.0d0 
+      norm0=0.0d0 
+      do i=1,np
          do j=1,np
-         norm=norm+dp(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-         norm1=norm1+dp1(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-         norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-      enddo
-   enddo 
-   if(myrank().eq.0) write(6,*) 'norm tot = ', norm
-   dp=dp/norm*(4.0d0*pi*xpf**3/3.0d0)**2
-   dp1=dp1/norm1*(4.0d0*pi*xpf**3/3.0d0)**2
-   dp0=dp0/norm0*(4.0d0*pi*xpf**3/3.0d0)**2
+            norm=norm+dp(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
+            norm1=norm1+dp1(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
+            norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
+         enddo
+      enddo  
+   endif
 
-   norm=0.0d0
-   norm1=0.0d0 
-   norm0=0.0d0 
-   do i=1,np
-      do j=1,np
-         norm=norm+dp(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-         norm1=norm1+dp1(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-         norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
-      enddo
-   enddo  
-   if(myrank().eq.0) write(6,*) 'norm tot =' , norm
-
+   if(myrank().eq.0) write(6,*) 'norm1 tot =' , norm1
+   if(myrank().eq.0) write(6,*) 'norm0 tot =' , norm0 
 
    open(10, file='rho_1.dat')
    read(10,*) np_del
@@ -259,7 +302,7 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
 
             write(6,'("xsec = ",ES24.16,", err = ",F12.6,"%")') &
             &  wmean, 100.0d0*xsec_err_tmp/wmean
-             
+              
             if(100.0d0*xsec_err_tmp/wmean.lt.0.5d0) then 
                converged = .true.
             endif
@@ -343,8 +386,8 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,q2,w,enu,q2range,wrange)
    do i=1,nwlk
       call setrn(irn_int(i))
       do while(g(i).le.0.0d0)
-         j1(i)=1+int(np*ran())
-         j2(i)=1+int(np*ran())
+         j1(i)=1+int(nqrel*ran())
+         j2(i)=1+int(nqtot*ran())
 
          isocomb(:,i) = allowed_isocomb(randint(iso_configs),:)
          i1(i) = isocomb(1,i)
@@ -362,9 +405,9 @@ subroutine mc_random_startpoint(g,i1,i2,i1p,i2p,j1,j2,q2,w,enu,q2range,wrange)
          q2range(i)=q2max-q2min
 
          if(mod(i1(i)+i2(i),2).eq.0) then 
-            call g_eval(wmax,q2max,q2min,p(j1(i)),p(j2(i)),dp1(j1(i),j2(i)),norm1,g(i))
+            call g_eval(wmax,q2max,q2min,qrel(j1(i)),qtot(j2(i)),dp1(j1(i),j2(i)),norm1,g(i))
          else
-            call g_eval(wmax,q2max,q2min,p(j1(i)),p(j2(i)),dp0(j1(i),j2(i)),norm0,g(i))
+            call g_eval(wmax,q2max,q2min,qrel(j1(i)),qtot(j2(i)),dp0(j1(i),j2(i)),norm0,g(i))
          endif
 
       enddo
@@ -384,9 +427,9 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,q2_o,w_o,enu_o,g_o,q2range,wr
    real*8,intent(inout) :: q2_o,w_o,enu_o,g_o
    real*8,intent(inout) :: q2range,wrange
 
-   j1_n=nint(j1_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
-   j2_n=nint(j2_o+0.05d0*np*(-1.0d0+2.0d0*ran()))
-   if(j1_n.le.np.and.j1_n.ge.1.and.j2_n.le.np.and.j2_n.ge.1) then
+   j1_n=nint(j1_o+0.05d0*nqrel*(-1.0d0+2.0d0*ran()))
+   j2_n=nint(j2_o+0.05d0*nqtot*(-1.0d0+2.0d0*ran()))
+   if(j1_n.le.nqrel.and.j1_n.ge.1.and.j2_n.le.nqtot.and.j2_n.ge.1) then
       enu_n=mlept + (enu_max - mlept)*ran()
       wmax = enu_n - mlept
       q2max=2.0d0*enu_n**2-mlept**2+2.0d0*enu_n*sqrt(enu_n**2-mlept**2)
@@ -401,9 +444,9 @@ subroutine mc_step(i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,q2_o,w_o,enu_o,g_o,q2range,wr
       i2p_n = isocomb(4)
 
       if(mod(i1_n+i2_n,2).eq.0) then 
-         call g_eval(wmax,q2max,q2min,p(j1_n),p(j2_n),dp1(j1_n,j2_n),norm1,g_n)
+         call g_eval(wmax,q2max,q2min,qrel(j1_n),qtot(j2_n),dp1(j1_n,j2_n),norm1,g_n)
       else
-         call g_eval(wmax,q2max,q2min,p(j1_n),p(j2_n),dp0(j1_n,j2_n),norm0,g_n)
+         call g_eval(wmax,q2max,q2min,qrel(j1_n),qtot(j2_n),dp0(j1_n,j2_n),norm0,g_n)
       endif
 
    else
@@ -443,10 +486,10 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
    call event_init(event,numPart=6)
 
    if(mod(i1+i2,2).eq.0) then 
-       call f_eval(q2,w,i1,i2,i1p,i2p,p(j1),p(j2),dp1(j1,j2), &
+       call f_eval(q2,w,i1,i2,i1p,i2p,qrel(j1),qtot(j2),dp1(j1,j2), &
       &  Enu,f,event)
    else
-       call f_eval(q2,w,i1,i2,i1p,i2p,p(j1),p(j2),dp0(j1,j2), &
+       call f_eval(q2,w,i1,i2,i1p,i2p,qrel(j1),qtot(j2),dp0(j1,j2), &
       &  Enu,f,event)
    endif
 
@@ -486,14 +529,16 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
 end subroutine mc_calculate_xsec
 
 !Evaluate the cross section at fixed kinematics
-subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
+subroutine f_eval(q2,w,i1,i2,i1p,i2p,qrel_mag,qtot_mag,np1,enu_v,f,my_event_in)
    use event_module
    use mathtool
    use mympi
    use dirac_matrices
    implicit none
    integer*4 :: fg,ip,il,i1,i2,i1p,i2p
-   real*8 :: emu,w,pmu,cos_theta,sin_theta
+   real*8 :: emu,w,pmu,cos_theta,sin_theta,qrel_mag, qtot_mag
+   real*8 :: p2_3(3),p1_3(3),qrel_3(3),qtot_3(3)
+   real*8 :: qrel_ct,qrel_st,qrel_phi,qtot_ct,qtot_st,qtot_phi
    real*8 :: p2,ctp2,phip2,pj1,pj2,ctp1,phip1
    real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,qval,q2
    real*8 :: v_ll,v_t,sig0,sig 
@@ -517,10 +562,20 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    qval=sqrt(q2+w**2)
 
    !Sample initial state kinematics randomly
-   ctp2=-1.0d0+2.0d0*ran()
-   phip2=2.0d0*pi*ran()
-   ctp1=-1.0d0+2.0d0*ran()
-   phip1=2.0d0*pi*ran()
+   qrel_ct=-1.0d0+2.0d0*ran()
+   qrel_phi=2.0d0*pi*ran()
+   qtot_ct=-1.0d0+2.0d0*ran()
+   qtot_phi=2.0d0*pi*ran()
+   qtot_st=sqrt(1.0d0 - qtot_ct**2)
+   qrel_st=sqrt(1.0d0 - qrel_ct**2)
+
+   !Define vec_qrel and vec_Qtot
+   qrel_3 = (/qrel_mag*qrel_st*cos(qrel_phi),qrel_mag*qrel_st*sin(qrel_phi),qrel_mag*qrel_ct/)
+   qtot_3 = (/qtot_mag*qtot_st*cos(qtot_phi),qtot_mag*qtot_st*sin(qtot_phi),qtot_mag*qtot_ct/)
+
+   !Define initial state nucleon 3 vectors
+   p1_3 = qtot_3/2 + qrel_3
+   p2_3 = qtot_3/2 - qrel_3
 
    enu_vf=enu_v/hbarc
    tan2=(1.0d0-cos_theta)/(1.0d0+cos_theta)
@@ -564,8 +619,8 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    q=probeP4-outlepP4
 
    !Evaluate the hadronic tensor
-   call int_eval(probeP4,outlepP4,pj2,ctp2,phip2, &
-      &  pj1,ctp1,phip1,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
+   call int_eval(probeP4,outlepP4,p2_3, &
+      &  p1_3,w,q,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
       &  i1,i2,i1p,i2p)
 
    !We sample 3 phi angles, and 3 cosines
@@ -603,8 +658,8 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    return
 end subroutine f_eval
 
-subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
-      &  phip1,w,q_4,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
+subroutine int_eval(kprobe_4,klept_4,p2,p1, &
+      &  w,q_4,r_now,np1,nuc1P4,nuc2P4,nuc1PP4,nuc2PP4, &
       &  i1,i2,i1p,i2p)
    use dirac_matrices         
    use mathtool
@@ -612,8 +667,8 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    integer*4 :: i,j,i1,i2,i1p,i2p
    real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6,xmad=950.0d0
    real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
-   real*8 :: w,p2,ctp2,phip2,p1,ctp1,phip1,stp1,stp2
-   real*8 :: pp1,den,jac,arg,q(4)
+   real*8 :: w,p2(3),ctp2,phip2,p1(3),ctp1,phip1,stp1,stp2
+   real*8 :: pp1,den,jac,arg,q(4),qrel_mag,qtot_mag
    real*8 :: q2,rho,norm,gep,np1
    real*8 :: ca4,ca5,ca6,cv3,cv4,cv5,cV(3),cA(3)
    real*8 :: p1_4(4),p2_4(4),pp1_4(4),pp2_4(4),k2_4(4),k1_4(4),q_4(4),pp_4(4)
@@ -631,19 +686,16 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2
    real*8 :: nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
 
-   !Get sin theta for initial state nucleons
-   stp1=sqrt(1.0d0-ctp1**2)
-   stp2=sqrt(1.0d0-ctp2**2)
+   !Ok I can define p1,p2 fourvectors
+   p1_4(2)=p1(1)
+   p1_4(3)=p1(2)
+   p1_4(4)=p1(3)
+   p2_4(2)=p2(1)
+   p2_4(3)=p2(2)
+   p2_4(4)=p2(3)
 
-   !Ok I have defined p1 and p2
-   p1_4(1)=sqrt(p1**2+xmn**2)
-   p1_4(2)=p1*stp1*cos(phip1)
-   p1_4(3)=p1*stp1*sin(phip1)
-   p1_4(4)=p1*ctp1
-   p2_4(1)=sqrt(p2**2+xmn**2)
-   p2_4(2)=p2*stp2*cos(phip2)
-   p2_4(3)=p2*stp2*sin(phip2)
-   p2_4(4)=p2*ctp2
+   p1_4(1) = sqrt(sum(p1_4(2:4)**2) + xmn**2)
+   p2_4(1) = sqrt(sum(p2_4(2:4)**2) + xmn**2)
 
    q2=q_4(1)**2 - sum(q_4(2:4)**2)
 
@@ -761,20 +813,25 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
 
    j_tot = j_tot_V + j_tot_A
 
+   !Need these magnitudes to conevrt back to q,Q
+   !Note d^3p1 d^3p2 = d^3q d^3Q
+   qrel_mag = 0.50d0*sqrt(sum((p1_4(2:4) - p2_4(2:4))**2))
+   qtot_mag= sqrt(sum((p1_4(2:4) + p2_4(2:4))**2))
+
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
    
-      r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**9*(had(:,:))* &
+      r_now(:,:) =np1*qrel_mag**2*qtot_mag**2/(2.0d0*pi)**9*(had(:,:))* &
    &      lorentz_jac/rho*dble(xA)
 
    return
 end subroutine   
 
-subroutine g_eval(wmax,q2max,q2min,pj1,pj2,gPkE,gnorm,g)
+subroutine g_eval(wmax,q2max,q2min,qj1,Qj2,gPkE,gnorm,g)
    implicit none
    real*8, parameter :: pi=acos(-1.0d0)
-   real*8 ::pj1,pj2,gPkE,g,gnorm,q2range,wmax,q2max,q2min
-   g=(4.0d0*pi)**2*pj1**2*pj2**2*gPkE
+   real*8 ::qj1,Qj2,gPkE,g,gnorm,q2range,wmax,q2max,q2min
+   g=(4.0d0*pi)**2*qj1**2*Qj2**2*gPkE
 
    q2range = q2max-q2min
    g=g/gnorm/iso_configs !Dividing by the number of isospin configurations consistent with charge conservation
