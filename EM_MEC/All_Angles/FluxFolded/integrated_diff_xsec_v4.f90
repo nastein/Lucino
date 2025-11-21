@@ -247,7 +247,7 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
       !Number of trials
       iv = iv+1
 
-      if (mod(iv, 5000) == 0) then  ! every 5000 outer loops
+      if (mod(iv, 20000) == 0) then  ! every 20000 outer loops
          call addall(r_avg, xsec_sum_tmp)
          call addall(r_err, xsec_sqsum_tmp)
          call addall(i_avg, nsamples_tmp)
@@ -260,7 +260,7 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
             write(6,'("xsec = ",ES24.16,", err = ",F12.6,"%")') &
             &  wmean, 100.0d0*xsec_err_tmp/wmean
              
-            if(100.0d0*xsec_err_tmp/wmean.lt.0.5d0) then 
+            if(100.0d0*xsec_err_tmp/wmean.lt.0.8d0) then 
                converged = .true.
             endif
          endif
@@ -439,15 +439,14 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
    real*8,intent(inout) :: max_weight,r_avg,r_err
    real*8 :: ratio,f,r,enu_i,flux
 
-
    call event_init(event,numPart=6)
 
    if(mod(i1+i2,2).eq.0) then 
        call f_eval(q2,w,i1,i2,i1p,i2p,p(j1),p(j2),dp1(j1,j2), &
-      &  Enu,f,event)
+      &  Enu,f,event,eventgen)
    else
        call f_eval(q2,w,i1,i2,i1p,i2p,p(j1),p(j2),dp0(j1,j2), &
-      &  Enu,f,event)
+      &  Enu,f,event,eventgen)
    endif
 
    call get_flux_fast(Enu, flux)
@@ -460,6 +459,7 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
    if(ABS(f).ge.max_weight) then
       if(eventgen.eqv..true.) then
          print*,'w_i > w_max. This should never happen!'
+         stop
       endif 
       !Handle negative weights
       max_weight = ABS(f) 
@@ -486,7 +486,7 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
 end subroutine mc_calculate_xsec
 
 !Evaluate the cross section at fixed kinematics
-subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
+subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in,eventgen)
    use event_module
    use mathtool
    use mympi
@@ -501,6 +501,7 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    real*8 :: q(4),probeP4(4),outlepP4(4),nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
    type(event_t), intent(inout) :: my_event_in
    type(particle_t) :: my_particles(6)
+   logical :: eventgen
 
    emu = enu_v-w
    pmu = sqrt(emu**2-mlept**2)
@@ -579,26 +580,28 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in)
    sig=sig0*(real(ampsq))
    f=sig*jac_c
 
-   my_particles(1)%p4 = probeP4
-   if(CC.eqv..true.) then 
-      my_particles(1)%pdg = 14
-      my_particles(2)%pdg = 13
-   else
-      my_particles(1)%pdg = 11
-      my_particles(2)%pdg = 11
+   !Don't bother filling if we're not generating events
+   if(eventgen.eqv..true.) then
+      my_particles(1)%p4 = probeP4
+      if(CC.eqv..true.) then 
+         my_particles(1)%pdg = 14
+         my_particles(2)%pdg = 13
+      else
+         my_particles(1)%pdg = 11
+         my_particles(2)%pdg = 11
+      endif
+      my_particles(2)%p4 = outlepP4
+      my_particles(3)%p4 = nuc1P4
+      my_particles(3)%pdg = isolabel2pdg(i1)
+      my_particles(4)%p4 = nuc1PP4
+      my_particles(4)%pdg = isolabel2pdg(i1p)
+      my_particles(5)%p4 = nuc2P4
+      my_particles(5)%pdg = isolabel2pdg(i2)
+      my_particles(6)%p4 = nuc2PP4
+      my_particles(6)%pdg = isolabel2pdg(i2p)
+
+      my_event_in%particles = my_particles
    endif
-   my_particles(2)%p4 = outlepP4
-   my_particles(3)%p4 = nuc1P4
-   my_particles(3)%pdg = isolabel2pdg(i1)
-   my_particles(4)%p4 = nuc1PP4
-   my_particles(4)%pdg = isolabel2pdg(i1p)
-   my_particles(5)%p4 = nuc2P4
-   my_particles(5)%pdg = isolabel2pdg(i2)
-   my_particles(6)%p4 = nuc2PP4
-   my_particles(6)%pdg = isolabel2pdg(i2p)
-
-
-   my_event_in%particles = my_particles
 
    return
 end subroutine f_eval
@@ -753,9 +756,10 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
 
    !Pass momenta and form factors to currents module
    call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cV,cA,np_del,pdel,pot_del)
+
+   !call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cv3,ca5,np_del,pdel,pot_del)
    call define_lept_spinors() 
-   call JDelta(j_delta_V,j_delta_A)
-   call JPi(j_pi_V,j_pi_A)
+   call Compute_Currents(j_delta_V,j_delta_A,j_pi_V,j_pi_A,i1,i2,i1p,i2p)
 
    j_tot_V = j_delta_V + j_pi_V
    j_tot_A = j_delta_A + j_pi_A
@@ -763,6 +767,11 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    !j_tot_V(:,:,:,:,:,:,:,:,4) = j_tot_V(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
 
    j_tot = j_tot_V + j_tot_A
+
+   !call JDelta(j_delta_V)
+   !call JPi(j_pi_V)
+
+   !j_tot = j_delta_V + j_pi_V
 
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)

@@ -501,7 +501,78 @@ subroutine det_JaJb_JcJd()
  
 end subroutine
 
-subroutine JDeltaFixed(jtot_V,jtot_A)
+subroutine Compute_Currents(JDelta_V,JDelta_A,JPi_V,JPi_A,ti1,ti2,tf1,tf2)
+    implicit none
+    integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
+    complex*16, intent(out) :: JDelta_V(2,2,2,2,2,2,2,2,4),JDelta_A(2,2,2,2,2,2,2,2,4)
+    complex*16, intent(out) :: JPi_V(2,2,2,2,2,2,2,2,4),JPi_A(2,2,2,2,2,2,2,2,4)
+    complex*16 :: JDelta_V_1212(2,2,2,2,2,2,2,2,4), JDelta_A_1212(2,2,2,2,2,2,2,2,4)
+    complex*16 :: JPi_V_1212(2,2,2,2,2,2,2,2,4), JPi_A_1212(2,2,2,2,2,2,2,2,4)
+    complex*16 :: JDelta_V_1221(2,2,2,2,2,2,2,2,4), JDelta_A_1221(2,2,2,2,2,2,2,2,4)
+    complex*16 :: JPi_V_1221(2,2,2,2,2,2,2,2,4), JPi_A_1221(2,2,2,2,2,2,2,2,4)
+
+    !Here we will compute the delta and pion currents defined as J = J(121'2') - J(122'1')
+
+    JDelta_V = czero
+    JDelta_A = czero
+    JDelta_V_1212 = czero
+    JDelta_A_1212 = czero
+    JDelta_V_1221 = czero
+    JDelta_A_1221 = czero
+    JPi_V = czero
+    JPi_A = czero
+    JPi_V_1212 = czero
+    JPi_A_1212 = czero
+    JPi_V_1221 = czero
+    JPi_A_1221 = czero
+
+    !First ordering
+    call had_current_init(p1_,p2_,pp1_,pp2_)
+    call define_spinors()
+    call det_Jpi()
+    call det_JaJb_JcJd()
+    call JDeltaFixed(JDelta_V_1212,JDelta_A_1212,ti1,ti2,tf1,tf2)
+    call JPiFixed(JPi_V_1212,JPi_A_1212,ti1,ti2,tf1,tf2)
+
+    !Second ordering
+    call had_current_init(p1_,p2_,pp2_,pp1_)
+    call define_spinors()
+    call det_Jpi()
+    call det_JaJb_JcJd()
+    call JDeltaFixed(JDelta_V_1221,JDelta_A_1221,ti1,ti2,tf1,tf2)
+    call JPiFixed(JPi_V_1221,JPi_A_1221,ti1,ti2,tf1,tf2)
+
+    !do ti1=1,2
+    !    do ti2=1,2
+    !        do tf1=1,2
+    !            do tf2=1,2
+                    do i1=1,2
+                        do i2=1,2
+                            do f1=1,2
+                                do f2=1,2
+                                    JDelta_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = JDelta_V_1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - JDelta_V_1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) 
+
+                                    JDelta_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = JDelta_A_1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - JDelta_A_1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) 
+
+
+                                    JPi_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = JPi_V_1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - JPi_V_1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) 
+
+                                    JPi_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = jPi_A_1212(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
+                                    &  - JPi_A_1221(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:)
+                                enddo
+                            enddo
+                        enddo
+                    enddo
+    !            enddo
+    !        enddo
+    !    enddo
+    !enddo
+end subroutine Compute_Currents
+
+subroutine JDeltaFixed(jtot_V,jtot_A,ti1,ti2,tf1,tf2)
     use isospin_op
     implicit none
     integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
@@ -537,12 +608,6 @@ subroutine JDeltaFixed(jtot_V,jtot_A)
     jc_A_sub=czero
     jd_A_sub=czero
     jtot_A=czero
-
-    !Fill spinors for nucleons with given momenta (specified outside this function)
-    call define_spinors()
-    !Compute pion and delta current matrices
-    call det_Jpi()
-    call det_JaJb_JcJd()
 
     do i1=1,2
       do f1=1,2
@@ -582,10 +647,10 @@ subroutine JDeltaFixed(jtot_V,jtot_A)
         enddo
     enddo
 
-    do ti1=1,2
-        do ti2=1,2
-            do tf1=1,2
-                do tf2=1,2
+    !do ti1=1,2
+    !    do ti2=1,2
+    !        do tf1=1,2
+    !            do tf2=1,2
                     iso_a(tf2,tf1,ti2,ti1)=IDeltaA(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
                     iso_b(tf2,tf1,ti2,ti1)=IDeltaB(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
                     iso_c(tf2,tf1,ti2,ti1)=IDeltaC(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
@@ -600,72 +665,14 @@ subroutine JDeltaFixed(jtot_V,jtot_A)
                     jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) + jb_A(:,:,:,:,:)*iso_b(tf2,tf1,ti2,ti1)
                     jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) + jc_A(:,:,:,:,:)*iso_c(tf2,tf1,ti2,ti1)
                     jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) + jd_A(:,:,:,:,:)*iso_d(tf2,tf1,ti2,ti1)
-                enddo
-            enddo
-        enddo
-    enddo
+    !            enddo
+    !        enddo
+    !    enddo
+    !enddo
 
     return
 
 end subroutine JDeltaFixed
-
-subroutine JDelta(janti_V,janti_A)
-    implicit none
-    integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
-    complex*16 :: j1212_V(2,2,2,2,2,2,2,2,4), j1221_V(2,2,2,2,2,2,2,2,4)
-    complex*16 :: j2121_V(2,2,2,2,2,2,2,2,4), j2112_V(2,2,2,2,2,2,2,2,4)
-    complex*16 :: j1212_A(2,2,2,2,2,2,2,2,4), j1221_A(2,2,2,2,2,2,2,2,4)
-    complex*16 :: j2121_A(2,2,2,2,2,2,2,2,4), j2112_A(2,2,2,2,2,2,2,2,4)
-    complex*16 :: janti_V(2,2,2,2,2,2,2,2,4), janti_A(2,2,2,2,2,2,2,2,4)
-
-    janti_V=czero
-    j1212_V=czero
-    j1221_V=czero
-    j2112_V=czero
-    j2121_V=czero
-    j1212_A=czero
-    j1221_A=czero
-    j2112_A=czero
-    j2121_A=czero
-
-    call had_current_init(p1_,p2_,pp1_,pp2_)
-    call JDeltaFixed(j1212_V,j1212_A)
-
-    !call had_current_init(p2_,p1_,pp1_,pp2_)
-    !call JDeltaFixed(j2112_V,J2112_A)
-
-    call had_current_init(p1_,p2_,pp2_,pp1_)
-    call JDeltaFixed(j1221_V,j1221_A)
-
-    !call had_current_init(p2_,p1_,pp2_,pp1_)
-    !call JDeltaFixed(j2121_V,j2121_A)
-
-    do ti1=1,2
-        do ti2=1,2
-            do tf1=1,2
-                do tf2=1,2
-                    do i1=1,2
-                        do i2=1,2
-                            do f1=1,2
-                                do f2=1,2
-                                    janti_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
-                                    &  - j1221_V(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
-                                    &  - j2112_V(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
-                                    &  + j2121_V(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
-
-                                    janti_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
-                                    &  - j1221_A(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
-                                    &  - j2112_A(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
-                                    &  + j2121_A(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
-                                enddo
-                            enddo
-                        enddo
-                    enddo
-                enddo
-            enddo
-        enddo
-    enddo
-end subroutine JDelta
 
 subroutine ForwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDeltaV,GammaNDeltaA)
     implicit none
@@ -704,7 +711,7 @@ subroutine BackwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDeltaV,GammaNDeltaA)
     GammaNDeltaTempV = czero
     GammaNDeltaTempA = czero
 
-    call ForwardsDeltaVertex(pin,-qin,-qslash,j,i,GammaNDeltaTempV,GammaNDeltaA)
+    call ForwardsDeltaVertex(pin,-qin,-qslash,j,i,GammaNDeltaTempV,GammaNDeltaTempA)
 
     !Ok now we want \tilde{Gamma_munu(p,q)} = gamma0 (Gamma_numu(p,-q))^dagger gamma0
     GammaNDeltaV(:,:,i,j) = matmul(gamma_mu(:,:,1),matmul(transpose(conjg(GammaNDeltaTempV(:,:,j,i))),gamma_mu(:,:,1)))
@@ -714,7 +721,7 @@ subroutine BackwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDeltaV,GammaNDeltaA)
 
 end subroutine BackwardsDeltaVertex
 
-subroutine JPiFixed(jtot_V,jtot_A)
+subroutine JPiFixed(jtot_V,jtot_A,ti1,ti2,tf1,tf2)
    use isospin_op
    implicit none
     integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
@@ -725,12 +732,6 @@ subroutine JPiFixed(jtot_V,jtot_A)
     complex*16 :: js1_A(2,2,2,2,4),js2_A(2,2,2,2,4),jp1_A(2,2,2,2,4),jp2_A(2,2,2,2,4),jf_A(2,2,2,2,4)
     complex*16 :: jtot_V(2,2,2,2,2,2,2,2,4),jtot_A(2,2,2,2,2,2,2,2,4)
     complex*16 :: iso_pi(2,2,2,2)
-
-
-    !Fill spinors for nucleons with given momenta (specified outside this function)
-    call define_spinors()
-    !Compute pion current matrices
-    call det_Jpi()
 
     iso_pi=czero
 
@@ -743,6 +744,7 @@ subroutine JPiFixed(jtot_V,jtot_A)
     js2_V_sub=czero
     jp1_V_sub=czero
     jp2_V_sub=czero
+    jtot_V=czero
 
     js1_A = czero
     js2_A= czero
@@ -753,6 +755,7 @@ subroutine JPiFixed(jtot_V,jtot_A)
     js2_A_sub=czero
     jp1_A_sub=czero
     jp2_A_sub=czero
+    jtot_A=czero
 
 
    do i1=1,2
@@ -804,10 +807,10 @@ subroutine JPiFixed(jtot_V,jtot_A)
         enddo
     enddo
 
-    do ti1=1,2
-        do ti2=1,2
-            do tf1=1,2
-                do tf2=1,2
+    !do ti1=1,2
+    !    do ti2=1,2
+    !        do tf1=1,2
+    !            do tf2=1,2
                     jtot_V(:,:,:,:,tf2,tf1,ti2,ti1,:) = iso_pi(tf2,tf1,ti2,ti1)&
                         & * (js1_V(:,:,:,:,:) + js2_V(:,:,:,:,:) + jf_V(:,:,:,:,:)&
                         & + jp1_V(:,:,:,:,:) + jp2_V(:,:,:,:,:))
@@ -815,74 +818,14 @@ subroutine JPiFixed(jtot_V,jtot_A)
                     jtot_A(:,:,:,:,tf2,tf1,ti2,ti1,:) = iso_pi(tf2,tf1,ti2,ti1)&
                         & * (js1_A(:,:,:,:,:) + js2_A(:,:,:,:,:) + jf_A(:,:,:,:,:)&
                         & + jp1_A(:,:,:,:,:) + jp2_A(:,:,:,:,:))
-                enddo
-            enddo
-        enddo
-    enddo
+    !            enddo
+    !        enddo
+    !    enddo
+    !enddo
 
 
    return
 end subroutine JPiFixed
-
-subroutine JPi(janti_V,janti_A)
-    implicit none
-    integer*4 :: i1,i2,f1,f2,i,j,ti1,ti2,tf1,tf2
-    complex*16 :: j1212_V(2,2,2,2,2,2,2,2,4), j1221_V(2,2,2,2,2,2,2,2,4)
-    complex*16 :: j2121_V(2,2,2,2,2,2,2,2,4), j2112_V(2,2,2,2,2,2,2,2,4)
-    complex*16 :: j1212_A(2,2,2,2,2,2,2,2,4), j1221_A(2,2,2,2,2,2,2,2,4)
-    complex*16 :: j2121_A(2,2,2,2,2,2,2,2,4), j2112_A(2,2,2,2,2,2,2,2,4)
-    complex*16 :: janti_V(2,2,2,2,2,2,2,2,4), janti_A(2,2,2,2,2,2,2,2,4)
-
-    janti_V=czero
-    j1212_V=czero
-    j1221_V=czero
-    j2112_V=czero
-    j2121_V=czero
-
-    janti_A=czero
-    j1212_A=czero
-    j1221_A=czero
-    j2112_A=czero
-    j2121_A=czero
-
-    call had_current_init(p1_,p2_,pp1_,pp2_)
-    call JPiFixed(j1212_V,j1212_A)
-
-    !call had_current_init(p2_,p1_,pp1_,pp2_)
-    !call JPiFixed(j2112_V,j2112_A)
-
-    call had_current_init(p1_,p2_,pp2_,pp1_)
-    call JPiFixed(j1221_V,j1221_A)
-
-    !call had_current_init(p2_,p1_,pp2_,pp1_)
-    !call JPiFixed(j2121_V,j2121_A)
-
-    do ti1=1,2
-        do ti2=1,2
-            do tf1=1,2
-                do tf2=1,2
-                    do i1=1,2
-                        do i2=1,2
-                            do f1=1,2
-                                do f2=1,2
-                                    janti_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212_V(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
-                                    &  - j1221_V(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
-                                    &  - j2112_V(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
-                                    &  + j2121_V(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
-
-                                    janti_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) = j1212_A(f2,f1,i2,i1,tf2,tf1,ti2,ti1,:) & 
-                                    &  - j1221_A(f1,f2,i2,i1,tf1,tf2,ti2,ti1,:) & 
-                                    &  - j2112_A(f2,f1,i1,i2,tf2,tf1,ti1,ti2,:) & 
-                                    &  + j2121_A(f1,f2,i1,i2,tf1,tf2,ti1,ti2,:) 
-                                enddo
-                            enddo
-                        enddo
-                    enddo
-                enddo
-            enddo
-        enddo
-    enddo
-end subroutine JPi
 
 subroutine lept_tens(lept)
    implicit none
