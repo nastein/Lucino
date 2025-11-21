@@ -700,7 +700,7 @@ subroutine BackwardsDeltaVertex(pin,qin,qslash,i,j,GammaNDeltaV,GammaNDeltaA)
     GammaNDeltaTempV = czero
     GammaNDeltaTempA = czero
 
-    call ForwardsDeltaVertex(pin,-qin,-qslash,j,i,GammaNDeltaTempV,GammaNDeltaA)
+    call ForwardsDeltaVertex(pin,-qin,-qslash,j,i,GammaNDeltaTempV,GammaNDeltaTempA)
 
     !Ok now we want \tilde{Gamma_munu(p,q)} = gamma0 (Gamma_numu(p,-q))^dagger gamma0
     GammaNDeltaV(:,:,i,j) = matmul(gamma_mu(:,:,1),matmul(transpose(conjg(GammaNDeltaTempV(:,:,j,i))),gamma_mu(:,:,1)))
