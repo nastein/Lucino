@@ -302,7 +302,7 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
 
             write(6,'("xsec = ",ES24.16,", err = ",F12.6,"%")') &
             &  wmean, 100.0d0*xsec_err_tmp/wmean
-              
+
             if(100.0d0*xsec_err_tmp/wmean.lt.0.5d0) then 
                converged = .true.
             endif
@@ -790,6 +790,9 @@ subroutine int_eval(kprobe_4,klept_4,p2,p1, &
    ca4=-ca5/4.0d0
    ca6=ca5*xmn**2 /(mpi**2 - q2)
 
+   cV=(/cv3,cv4,cv5/)
+   cA=(/ca4,ca5,ca6/)
+   
    rho=xpf**3/(1.5d0*pi**2)
 
    had=czero
@@ -863,7 +866,7 @@ end subroutine SummedSquareMatrix
 function isolabel2pdg(isoin) result(pdgout)
    integer*4 :: isoin, pdgout
    if(isoin.eq.1) then 
-      pdgout = 2212
+      pdgout=2212
    else
       pdgout=2112
    endif
@@ -872,9 +875,9 @@ end function isolabel2pdg
 function isolabel2charge(isoin) result(charge)
    integer*4 :: isoin, charge 
    if(isoin.eq.1) then 
-      charge = 1
+      charge=1
    else
-      charge = 0
+      charge=0
    endif
 end function isolabel2charge
 

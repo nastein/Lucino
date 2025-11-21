@@ -733,10 +733,13 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv5=0.48d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/(0.776d0*lsq))*sqrt(3.0d0/2.0d0)
-   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
-   ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
+   ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   !ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
    ca4=-ca5/4.0d0
    ca6=ca5*xmn**2 /(mpi**2 - q2)
+
+   cV=(/cv3,cv4,cv5/)
+   cA=(/ca4,ca5,ca6/)
 
    rho=xpf**3/(1.5d0*pi**2)
 
@@ -757,7 +760,7 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    j_tot_V = j_delta_V + j_pi_V
    j_tot_A = j_delta_A + j_pi_A
    !Apply current conservation to vector piece of current j_z = j0*w/q
-   j_tot_V(:,:,:,:,:,:,:,:,4) = j_tot_V(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
+   !j_tot_V(:,:,:,:,:,:,:,:,4) = j_tot_V(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
 
    j_tot = j_tot_V + j_tot_A
 
