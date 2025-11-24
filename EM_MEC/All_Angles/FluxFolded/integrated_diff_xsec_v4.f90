@@ -148,8 +148,9 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
          norm0=norm0+dp0(i,j)*p(i)**2*p(j)**2*(4.0d0*pi*(p(2)-p(1)))**2
       enddo
    enddo  
-   if(myrank().eq.0) write(6,*) 'norm tot =' , norm
 
+   if(myrank().eq.0) write(6,*) 'norm1 tot =' , norm1
+   if(myrank().eq.0) write(6,*) 'norm0 tot =' , norm0 
 
    open(10, file='rho_1.dat')
    read(10,*) np_del
@@ -216,22 +217,19 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
    i_acc_tot=0
    g_o=0.0d0
    maximum_weight=0.0d0
+   xsec = 0.0d0 
+   xsec_err = 0.0d0
+   xsec_tot = 0.0d0 
+   xsec_err_tot = 0.0d0
+   iv=1
 
    call progress_init(gen_events,1.0d0)
       
    !Initialize integrator to a random start point
    call mc_random_startpoint(g_o,i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,q2_o,w_o,enu_o,q2_range_o,w_range_o)
 
-   !Pick random start values for xsec and err (these don't matter)
-   xsec = 10.0d0 
-   xsec_err = 100.0d0
-   xsec_tot = 10.0d0 
-   xsec_err_tot = 100.0d0
-   iv=1
-
    call MPI_Barrier(mpi_comm_world,ierror)
 
-   
    !Compute total cross section to necessary precision
    do while (converged.eqv..false.)
       do j=1,nwlk
@@ -458,7 +456,8 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
 
    if(ABS(f).ge.max_weight) then
       if(eventgen.eqv..true.) then
-         print*,'w_i > w_max. This should never happen!'
+         print*,'w_i > w_max. Unfortunately we pulled a weight ' &
+         &  ,' greater than the max weight, rerun the simulation!'
          stop
       endif 
       !Handle negative weights
@@ -736,8 +735,8 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv5=0.48d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/(0.776d0*lsq))*sqrt(3.0d0/2.0d0)
-   ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
-   !ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
+   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
    ca4=-ca5/4.0d0
    ca6=ca5*xmn**2 /(mpi**2 - q2)
 
@@ -756,8 +755,6 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
 
    !Pass momenta and form factors to currents module
    call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cV,cA,np_del,pdel,pot_del)
-
-   !call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cv3,ca5,np_del,pdel,pot_del)
    call define_lept_spinors() 
    call Compute_Currents(j_delta_V,j_delta_A,j_pi_V,j_pi_A,i1,i2,i1p,i2p)
 
@@ -767,11 +764,6 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    !j_tot_V(:,:,:,:,:,:,:,:,4) = j_tot_V(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
 
    j_tot = j_tot_V + j_tot_A
-
-   !call JDelta(j_delta_V)
-   !call JPi(j_pi_V)
-
-   !j_tot = j_delta_V + j_pi_V
 
    !Sum over spins 
    call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
@@ -818,7 +810,7 @@ end subroutine SummedSquareMatrix
 function isolabel2pdg(isoin) result(pdgout)
    integer*4 :: isoin, pdgout
    if(isoin.eq.1) then 
-      pdgout = 2212
+      pdgout=2212
    else
       pdgout=2112
    endif
@@ -827,9 +819,9 @@ end function isolabel2pdg
 function isolabel2charge(isoin) result(charge)
    integer*4 :: isoin, charge 
    if(isoin.eq.1) then 
-      charge = 1
+      charge=1
    else
-      charge = 0
+      charge=0
    endif
 end function isolabel2charge
 
