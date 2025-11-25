@@ -28,11 +28,15 @@ module mc_module
    integer*4, private, save :: iso_configs
    logical, private, save :: CC
    integer*4, private, allocatable, save :: allowed_isocomb(:,:)
+   real*8,save :: w_abs,w_max_seen, w_sum, w2_sum,mean_w,rms_w
+   integer*4,save :: n_w
+   logical, private, save :: rotate_beam_along_z
+
 contains
 
 subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
       &  irn_event_in,nwlk_in,xpf_in,Eshift_in, &
-      &  mlept_in,xA_in,nZ_in,CC_in)
+      &  mlept_in,xA_in,nZ_in,CC_in,rotate_beam_along_z_in)
    use mathtool
    use event_module
    use mympi
@@ -43,7 +47,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    integer*4 :: gen_events_in,ipot,isospin_in
    real*8 :: xpf_in,mlept_in,hp,he,thetalept_in,dummy,xsec_acc_in
    real*8 :: Eshift_in
-   logical :: CC_in
+   logical :: CC_in, rotate_beam_along_z_in
    
    gen_events=gen_events_in
    xsec_acc=xsec_acc_in
@@ -55,7 +59,12 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    nZ=nZ_in
    i_fg=i_fg_in
    CC=CC_in
+   rotate_beam_along_z=rotate_beam_along_z_in
 
+   w_max_seen = 0.0d0
+   w_sum = 0.0d0 
+   w2_sum = 0.0d0 
+   n_w = 0
    
    if(CC.eqv..true.) then
       if(myrank().eq.0) then
@@ -446,6 +455,17 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
    !Aug 26 Factor of 4 is because I consider antisymmetric initial and final states
    f=f*(2.0d0*pi)/g * enu_i * flux / flux_norm * q2range * wrange / 4.0d0
 
+   w_abs = dabs(f)
+   w_max_seen = max(w_max_seen,w_abs)
+   w_sum = w_sum + w_abs
+   w2_sum = w2_sum + w_abs*w_abs
+   n_w = n_w + 1
+   !if(mod(n_w,10000).eq.0) then 
+   !   mean_w = w_sum / n_w 
+   !   rms_w = sqrt(w2_sum / n_w)
+   !   print*,'[SF] w_abs: mean, rms, max = ', mean_w, rms_w, w_max_seen
+   !endif
+
    if(ABS(f).ge.max_weight) then
       if(eventgen.eqv..true.) then
          print*,'w_i > w_max. Unfortunately we pulled a weight ' &
@@ -488,6 +508,7 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in,eventgen)
    real*8 :: p2,ctp2,phip2,pj1,pj2,ctp1,phip1
    real*8 :: np1,enu_v,enu_vf,f,jac_c,tan2,qval,q2
    real*8 :: v_ll,v_t,sig0,sig 
+   real*8 :: R(3,3)
    complex*16 :: r_now(4,4),lept_now(4,4),ampsq
    real*8 :: q(4),probeP4(4),outlepP4(4),nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
    type(event_t), intent(inout) :: my_event_in
@@ -542,17 +563,6 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in,eventgen)
    outlepP4(3) = 0.0d0
    outlepP4(4) = probeP4(4) - qval
 
-   !Changed so that neutrino is along z direction
-   !probeP4(1) = enu_v
-   !probeP4(2) = 0.0d0
-   !probeP4(3) = 0.0d0
-   !probeP4(4) = enu_v
-
-   !outlepP4(1) = emu 
-   !outlepP4(2) = pmu*sin_theta
-   !outlepP4(3) = 0.0d0
-   !outlepP4(4) = pmu*cos_theta
-
    q=probeP4-outlepP4
 
    !Evaluate the hadronic tensor
@@ -570,6 +580,17 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in,eventgen)
 
    sig=sig0*(real(ampsq))
    f=sig*jac_c
+
+   !If we want the beam along z, do a rotation
+   if(rotate_beam_along_z.eqv..true.) then 
+      call build_rot_to_z(probeP4, R)
+      call rotate(R,probeP4)
+      call rotate(R,outlepP4)
+      call rotate(R,nuc1P4)
+      call rotate(R,nuc1PP4)
+      call rotate(R,nuc2P4)
+      call rotate(R,nuc2PP4)
+   endif
 
    !Don't bother filling if we're not generating events
    if(eventgen.eqv..true.) then

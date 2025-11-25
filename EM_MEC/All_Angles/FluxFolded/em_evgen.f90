@@ -23,7 +23,7 @@ program ew_eventgen
    character*50 :: intf_char,temp_fname
    character*40 :: nk_fname,int_string,FG_string
    character*200 :: command,sig_char,theta_str,fname,flux_file
-   logical :: CC
+   logical :: CC, rotate_beam_along_z
 
    type(event_container_t) :: saved_events
 
@@ -49,8 +49,10 @@ program ew_eventgen
       read(5,*) DeltaPot
       read(5,*) nZ,xA
       read(5,*) i_fg
+      read(5,*) rotate_beam_along_z
       read(5,*) CC
       read(5,*) flux_file
+      close(5)
 
       
       if(CC.eqv..true.) then
@@ -114,6 +116,7 @@ program ew_eventgen
    call bcast(nZ)
    call bcast(xA)
    call bcast(i_fg)
+   call bcast(rotate_beam_along_z)
    call bcast(CC)
    call bcast(flux_norm)
    call bcast(nenu)
@@ -172,7 +175,7 @@ program ew_eventgen
 
    !Initialize spectral function and other necessary inputs
    call mc_init(gen_events_perproc,xsec_acc,i_fg,irn_int,irn_event, &
-         &  nwlk,xpf,Eshift,xmlept,xA,nZ,CC)
+         &  nwlk,xpf,Eshift,xmlept,xA,nZ,CC,rotate_beam_along_z)
 
    call set_up_flux(flux_v,enu_v,enu_max,flux_norm,nenu)
    num_events = 0
