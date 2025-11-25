@@ -12,12 +12,12 @@ program ew_eventgen
    real*8 :: progress,ti,tf, xsec_acc  
    integer :: clocks(2), count_rate, seeds(2)
    integer*4 :: nw,nZ,xA,i_fg,j,ilept,gen_events,num_events,nwlk,isospin
-   integer*4 :: DeltaPropFull,DeltaProp3half,DeltaPot
+   integer*4 :: DeltaPropFull,DeltaProp3half,DeltaPot,np_del
    integer*4 :: gen_events_perproc, ierr,nenu,bin
    integer*4 :: local_trials, global_trials, local_events, global_events
    real*8 :: wmax,thetalept,xpf,Eshift,hw,sig,sig_err,enu_1,enu_2,flux_norm
    real*8 :: xmlept,start,finish,total_sig,total_sig_err, enu_max,henu
-   real*8, allocatable :: enu_v(:), flux_v(:), enu_width(:)
+   real*8, allocatable :: enu_v(:),flux_v(:),enu_width(:),pdel(:),pot_del(:)
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
    integer*8 :: ran1,ran2,i,idx
    character*50 :: intf_char,temp_fname
@@ -87,6 +87,14 @@ program ew_eventgen
       flux_norm=sum(flux_v(:))*henu
       write(6,*) 'The normalization of the flux [10^-5/m^2] is', flux_norm
       enu_max=enu_v(nenu)
+
+      write(6,*)'Reading in Delta Potential'
+      open(10, file='rho_1.dat')
+      read(10,*) np_del
+      allocate(pdel(np_del),pot_del(np_del))
+      do i=1,np_del
+         read(10,*) pdel(i),pot_del(i)
+      enddo
    endif
 
    !Temporary files for each processor
@@ -115,6 +123,12 @@ program ew_eventgen
    call bcast(enu_v)
    call bcast(flux_v)
    call bcast(enu_max)
+   call bcast(np_del)
+   if(myrank().ne.0) then
+      allocate(pot_del(np_del),pdel(np_del))
+   endif
+   call bcast(pot_del)
+   call bcast(pdel)
 
    ti=MPI_Wtime()
 
@@ -153,7 +167,8 @@ program ew_eventgen
    endif
 
    !Initialize currents module
-   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,DeltaPropFull,DeltaProp3half,DeltaPot)
+   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,DeltaPropFull,DeltaProp3half,DeltaPot,&
+      &  np_del,pdel,pot_del)
 
    !Initialize spectral function and other necessary inputs
    call mc_init(gen_events_perproc,xsec_acc,i_fg,irn_int,irn_event, &

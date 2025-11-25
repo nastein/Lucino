@@ -5,7 +5,7 @@ module mc_module
    complex*16, private, parameter :: czero = (0.0d0,0.0d0)
    complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
    complex*16, private, parameter :: ci    = (0.0d0,1.0d0)
-   integer*4, private, save :: i_fsi,npot,np_del,pdg1_in,pdg2_in,pdg1_out,pdg2_out
+   integer*4, private, save :: i_fsi,npot,pdg1_in,pdg2_in,pdg1_out,pdg2_out
    complex*16, private, save :: it1(2),it2(2)
    integer*4, private, parameter :: nev=400000,neq=10000,nvoid=10,np0=40
    integer*4, private, parameter :: ntemp=1000
@@ -18,7 +18,7 @@ module mc_module
    real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0,ppmax=1.0d0*1.e3
    real*8, private,parameter :: G_F = 1.1664e-11,cb=0.9741699d0,alpha=1.0d0/137.0d0
    real*8, private, allocatable :: pv(:),p(:),dp(:,:),ep(:),dp1(:,:),dp0(:,:)
-   real*8, private, allocatable :: kin(:),pot(:),pdel(:),pot_del(:)
+   real*8, private, allocatable :: kin(:),pot(:)
    real*8, parameter :: mp=938.272d0,mn=939.565d0, &
       &  mu=931.494061d0,mpi=139.5d0
    real*8, private, save:: xmn
@@ -152,14 +152,6 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_fg_in,irn_int_in, &
    if(myrank().eq.0) write(6,*) 'norm1 tot =' , norm1
    if(myrank().eq.0) write(6,*) 'norm0 tot =' , norm0 
 
-   open(10, file='rho_1.dat')
-   read(10,*) np_del
-   allocate(pdel(np_del),pot_del(np_del))
-   do i=1,np_del
-      read(10,*) pdel(i),pot_del(i)
-   enddo
-
-   
 end subroutine
 
 subroutine set_up_flux(flux_in,enu_list_in,enu_max_in,flux_norm_in,nenu_in)
@@ -540,26 +532,26 @@ subroutine f_eval(q2,w,i1,i2,i1p,i2p,pj1,pj2,np1,enu_v,f,my_event_in,eventgen)
    endif 
 
    !Fix lepton kinematics (choose x-z plane and q along z)
-   !probeP4(1) = enu_v
-   !probeP4(2) = enu_v*pmu*sin_theta/qval
-   !probeP4(3) = 0.0d0
-   !probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
-
-   !outlepP4(1) = emu 
-   !outlepP4(2) = enu_v*pmu*sin_theta/qval
-   !outlepP4(3) = 0.0d0
-   !outlepP4(4) = probeP4(4) - qval
-
-   !Changed so that neutrino is along z direction
    probeP4(1) = enu_v
-   probeP4(2) = 0.0d0
+   probeP4(2) = enu_v*pmu*sin_theta/qval
    probeP4(3) = 0.0d0
-   probeP4(4) = enu_v
+   probeP4(4) = sqrt(enu_v**2 - (enu_v*pmu*sin_theta/qval)**2)
 
    outlepP4(1) = emu 
-   outlepP4(2) = pmu*sin_theta
+   outlepP4(2) = enu_v*pmu*sin_theta/qval
    outlepP4(3) = 0.0d0
-   outlepP4(4) = pmu*cos_theta
+   outlepP4(4) = probeP4(4) - qval
+
+   !Changed so that neutrino is along z direction
+   !probeP4(1) = enu_v
+   !probeP4(2) = 0.0d0
+   !probeP4(3) = 0.0d0
+   !probeP4(4) = enu_v
+
+   !outlepP4(1) = emu 
+   !outlepP4(2) = pmu*sin_theta
+   !outlepP4(3) = 0.0d0
+   !outlepP4(4) = pmu*cos_theta
 
    q=probeP4-outlepP4
 
@@ -624,11 +616,11 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    real*8 :: vcm(3),vcm_mag,gammacm,uhatcm(3) 
    real*8 :: stpp1_cm,E_tot,p_tot(3),p_totmag,pp1_cm_mag,lorentz_jac
    complex*16 :: had(4,4), r_now(4,4)
-   complex*16 :: j_delta(2,2,2,2,2,2,2,2,4), j_pi(2,2,2,2,2,2,2,2,4)
-   complex*16 :: j_delta_V(2,2,2,2,2,2,2,2,4), j_pi_V(2,2,2,2,2,2,2,2,4)
-   complex*16 :: j_delta_A(2,2,2,2,2,2,2,2,4), j_pi_A(2,2,2,2,2,2,2,2,4)
-   complex*16 :: j_tot_V(2,2,2,2,2,2,2,2,4),j_tot_A(2,2,2,2,2,2,2,2,4)
-   complex*16 :: j_tot(2,2,2,2,2,2,2,2,4)
+   complex*16 :: j_delta(2,2,2,2,4), j_pi(2,2,2,2,4)
+   complex*16 :: j_delta_V(2,2,2,2,4), j_pi_V(2,2,2,2,4)
+   complex*16 :: j_delta_A(2,2,2,2,4), j_pi_A(2,2,2,2,4)
+   complex*16 :: j_tot_V(2,2,2,2,4),j_tot_A(2,2,2,2,4)
+   complex*16 :: j_tot(2,2,2,2,4)
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2
    real*8 :: nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
@@ -735,10 +727,13 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv5=0.48d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/(0.776d0*lsq))*sqrt(3.0d0/2.0d0)
-   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
-   ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
+   ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   !ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
    ca4=-ca5/4.0d0
-   ca6=ca5*xmn**2 /(mpi**2 - q2)
+   ca6=0.0d0!ca5*xmn**2 /(mpi**2 - q2)
+   !write(6,*)'ca4 = ', ca4
+   !write(6,*)'ca5 = ', ca5
+   !write(6,*)'ca6 = ', ca5*xmn**2 /(mpi**2 - q2)
 
    cV=(/cv3,cv4,cv5/)
    cA=(/ca4,ca5,ca6/)
@@ -754,19 +749,19 @@ subroutine int_eval(kprobe_4,klept_4,p2,ctp2,phip2,p1,ctp1, &
    j_tot_A=czero
 
    !Pass momenta and form factors to currents module
-   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cV,cA,np_del,pdel,pot_del)
+   call current_init(kprobe_4,klept_4,p1_4,p2_4,pp1_4,pp2_4,q_4,w,gep,cV,cA)
    call define_lept_spinors() 
    call Compute_Currents(j_delta_V,j_delta_A,j_pi_V,j_pi_A,i1,i2,i1p,i2p)
 
    j_tot_V = j_delta_V + j_pi_V
    j_tot_A = j_delta_A + j_pi_A
    !Apply current conservation to vector piece of current j_z = j0*w/q
-   !j_tot_V(:,:,:,:,:,:,:,:,4) = j_tot_V(:,:,:,:,:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
+   j_tot_V(:,:,:,:,4) = j_tot_V(:,:,:,:,1)*w/sqrt(sum(q_4(2:4)**2))
 
    j_tot = j_tot_V + j_tot_A
 
    !Sum over spins 
-   call SummedSquareMatrix(had,conjg(j_tot),j_tot,i1,i2,i1p,i2p)
+   call SummedSquareMatrix(had,conjg(j_tot),j_tot)
    
       r_now(:,:) =np1*p1**2*p2**2/(2.0d0*pi)**9*(had(:,:))* &
    &      lorentz_jac/rho*dble(xA)
@@ -786,10 +781,10 @@ subroutine g_eval(wmax,q2max,q2min,pj1,pj2,gPkE,gnorm,g)
    return
 end subroutine g_eval
 
-subroutine SummedSquareMatrix(had, inJdag,inJ,ti1,ti2,tf1,tf2)
+subroutine SummedSquareMatrix(had, inJdag,inJ)
    implicit none 
-   integer*4 :: i,j,f1,f2,i1,i2,ti1,ti2,tf1,tf2
-   complex*16 :: had(4,4),inJdag(2,2,2,2,2,2,2,2,4),inJ(2,2,2,2,2,2,2,2,4)
+   integer*4 :: i,j,f1,f2,i1,i2
+   complex*16 :: had(4,4),inJdag(2,2,2,2,4),inJ(2,2,2,2,4)
    do i=1,4
       do j=1,4
          do i1=1,2
@@ -797,8 +792,8 @@ subroutine SummedSquareMatrix(had, inJdag,inJ,ti1,ti2,tf1,tf2)
                do f1=1,2
                   do f2=1,2
                      had(i,j)=had(i,j) &
-                     &   +inJdag(f2,f1,i2,i1,tf2,tf1,ti2,ti1,i) &
-                     &   *inJ(f2,f1,i2,i1,tf2,tf1,ti2,ti1,j)
+                     &   +inJdag(f2,f1,i2,i1,i) &
+                     &   *inJ(f2,f1,i2,i1,j)
                   enddo
                enddo
             enddo

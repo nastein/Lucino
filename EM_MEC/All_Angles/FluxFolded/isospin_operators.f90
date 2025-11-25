@@ -6,7 +6,6 @@ module isospin_op
     complex*16, private, save :: sig(3,2,2),id(2,2)
     complex*16, private, save :: up(2),down(2)
     logical, private, save :: CC
-
 contains
 
 subroutine set_up_isospin_ops(CC_in)
