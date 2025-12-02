@@ -218,6 +218,10 @@ program ew_eventgen
       command = 'cat'
       command = trim(command) // ' process* >> ' // trim(fname) 
       call execute_command_line(command)
+
+      ! Delete temporary per-process files
+      command = 'rm -f process_*.out'
+      call execute_command_line(command)
    endif
 
    call MPI_Barrier(mpi_comm_world,ierr)
