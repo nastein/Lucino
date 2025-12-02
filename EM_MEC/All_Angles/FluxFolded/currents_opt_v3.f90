@@ -1,6 +1,6 @@
 module dirac_matrices
     implicit none
-    integer*4, private, save :: i_fl, pair_isospin,DeltapropFull,Deltaprop3half,DeltaPot
+    integer*4, private, save :: i_fl, pair_isospin,DeltapropFull,Deltaprop3half,DeltaPot,intfsign
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
@@ -36,12 +36,12 @@ contains
 
 subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
     &   xmlept2_in,CC_in,DeltapropFull_in,Deltaprop3half_in,DeltaPot_in, &
-    &   np_del_in,pdel_in,pot_del_in)
+    &   intfsign_in,np_del_in,pdel_in,pot_del_in)
     use mympi
     use isospin_op
     implicit none
     integer*4 :: ti1,ti2,tf1,tf2
-    integer*4 :: i,DeltapropFull_in,Deltaprop3half_in,DeltaPot_in
+    integer*4 :: i,DeltapropFull_in,Deltaprop3half_in,DeltaPot_in,intfsign_in
     integer*4 :: np_del_in
     real*8 :: pdel_in(np_del_in),pot_del_in(np_del_in)
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
@@ -55,6 +55,7 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
     DeltapropFull = DeltapropFull_in
     Deltaprop3half = Deltaprop3half_in
     DeltaPot = DeltaPot_in
+    intfsign = intfsign_in
     np_del = np_del_in
     pdel = pdel_in
     pot_del = pot_del_in
@@ -106,7 +107,8 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
     endif
 
     !Fill isospin operators
-    !Remember the minus sign on -Iv gives us the same signs as Amaro
+    !Remember the minus sign on -Iv gives us the same signs as Amaro, + is Noemi's sign
+    !so intfsign = -1 is Amaro, intfsign = +1 is Noemi
     do ti1=1,2
         do ti2=1,2
             do tf1=1,2
@@ -115,7 +117,7 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
                     IsoDeltaB(tf2,tf1,ti2,ti1)=IDeltaB(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
                     IsoDeltaC(tf2,tf1,ti2,ti1)=IDeltaC(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
                     IsoDeltaD(tf2,tf1,ti2,ti1)=IDeltaD(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
-                    IsoPi(tf2,tf1,ti2,ti1)=-Iv(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
+                    IsoPi(tf2,tf1,ti2,ti1)=intfsign*Iv(iso(ti1,:),iso(ti2,:),iso(tf1,:),iso(tf2,:))
                 enddo
             enddo
         enddo

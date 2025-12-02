@@ -7,21 +7,22 @@ program ew_eventgen
    
    implicit none
    real*8, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0
-   real*8, parameter :: xmd=1236.0d0,xmn=938.0d0,xmpi=139.d0,xmmu=105.658357
+   real*8, parameter :: xmd=1232.0d0,xmn=939.0d0,xmpi=139.5d0,xmmu=105.658357
    real*8 :: progress,ti,tf, xsec_acc  
    integer :: clocks(2), count_rate, seeds(2)
-   integer*4 :: nw,nZ,xA,i_fg,j,ilept,gen_events,num_events,nwlk,isospin
-   integer*4 :: DeltaPropFull,DeltaProp3half,DeltaPot
+   integer*4 :: nw,nZ,xA,i_mode,j,ilept,gen_events,num_events,nwlk,isospin
+   integer*4 :: DeltaPropFull,DeltaProp3half,DeltaPot,intfsign,np_del
    integer*4 :: gen_events_perproc, ierr
    integer*4 :: local_trials, global_trials, local_events, global_events
    real*8 :: wmax,enu,thetalept,xpf,Eshift,hw,sig,sig_err
    real*8 :: xmlept,start,finish,total_sig,total_sig_err
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
+   real*8,allocatable :: pdel(:),pot_del(:)
    integer*8 :: ran1,ran2,i,idx
-   character*50 :: intf_char,temp_fname
+   character*50 :: intf_string,temp_fname
    character*40 :: nk_fname,int_string,FG_string
    character*200 :: command, sig_char, theta_str, fname
-   logical :: CC
+   logical :: CC, rotate_beam_along_z
 
    type(event_container_t) :: saved_events
 
@@ -46,8 +47,10 @@ program ew_eventgen
       read(5,*) DeltaPropFull
       read(5,*) DeltaProp3half
       read(5,*) DeltaPot
+      read(5,*) intfsign
       read(5,*) nZ,xA
-      read(5,*) i_fg
+      read(5,*) i_mode
+      read(5,*) rotate_beam_along_z
       read(5,*) CC
 
       
@@ -57,19 +60,36 @@ program ew_eventgen
          int_string = 'EM'
       endif
 
-      if(i_fg.eq.1) then
+      if(i_mode.eq.0) then
          FG_string = 'FG'
+      else if(i_mode.eq.1) then
+         FG_string = 'SFp1p2'
       else
-         FG_string = 'SF'
+         FG_string = 'SFqQ'
       endif
-      write(fname,'(A,A,A,A,A,I0,A)') 'test_qQ_',trim(int_string) &
-      &  ,'_',trim(FG_string),'_Ebeam_', int(enu),'.out'
+
+      if(intfsign.eq.1) then
+         intf_string = 'Noemi'
+      else
+         intf_string = 'Amaro'
+      endif
+
+      write(fname,'(A,A,A,A,A,A,A,I0,A)') 'test_',trim(int_string) &
+      &  ,'_',trim(FG_string),'_',trim(intf_string),'_Ebeam_', int(enu),'.out'
       
       if (myrank().eq.0) then
          print*, 'Output file: ', fname
       endif
 
       fname=trim(fname)
+
+      write(6,*)'Reading in Delta Potential'
+      open(10, file='rho_1.dat')
+      read(10,*) np_del
+      allocate(pdel(np_del),pot_del(np_del))
+      do i=1,np_del
+         read(10,*) pdel(i),pot_del(i)
+      enddo
    endif
 
    !Temporary files for each processor
@@ -87,10 +107,18 @@ program ew_eventgen
    call bcast(DeltaPropFull)
    call bcast(DeltaProp3half)
    call bcast(DeltaPot)
+   call bcast(intfsign)
    call bcast(nZ)
    call bcast(xA)
-   call bcast(i_fg)
+   call bcast(i_mode)
+   call bcast(rotate_beam_along_z)
    call bcast(CC)
+   call bcast(np_del)
+   if(myrank().ne.0) then
+      allocate(pot_del(np_del),pdel(np_del))
+   endif
+   call bcast(pot_del)
+   call bcast(pdel)
 
    ti=MPI_Wtime()
 
@@ -127,11 +155,12 @@ program ew_eventgen
    endif
 
    !Initialize currents module
-   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,DeltaPropFull,DeltaProp3half,DeltaPot)
+   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,DeltaPropFull,DeltaProp3half,DeltaPot, &
+      &  intfsign,np_del,pdel,pot_del)
 
    !Initialize spectral function and other necessary inputs
-   call mc_init(gen_events_perproc,xsec_acc,i_fg,irn_int,irn_event, &
-         &  nwlk,xpf,Eshift,xmlept,xA,nZ,CC)
+   call mc_init(gen_events_perproc,xsec_acc,i_mode,irn_int,irn_event, &
+         &  nwlk,xpf,Eshift,xmlept,xA,nZ,CC,rotate_beam_along_z)
    num_events = 0
 
    if(myrank().eq.0) then

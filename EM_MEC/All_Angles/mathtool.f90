@@ -487,5 +487,118 @@ subroutine trapz_weights(x, w)
  end do
 end subroutine trapz_weights
 
+subroutine build_rot_to_z(p4, R)
+! Build a 3x3 rotation matrix R such that R * p3 = (0,0,|p3|)
+! p4 is a 4-vector: (E, px, py, pz)
+   real*8, intent(in)  :: p4(4)
+   real*8, intent(out) :: R(3,3)
+
+   real*8 :: px, py, pz, pnorm
+   real*8 :: nx, ny, nz, nz_abs
+   real*8 :: ax, ay, az, anorm
+   real*8 :: c, s, t
+   real*8 :: ex(3), ez(3)
+
+   integer :: i
+
+   px = p4(2)
+   py = p4(3)
+   pz = p4(4)
+
+   pnorm = sqrt(px*px + py*py + pz*pz)
+
+   ! If momentum is zero (or extremely small), just use identity
+   if (pnorm .lt. 1.0d-12) then
+    R = 0.0d0
+    do i = 1,3
+       R(i,i) = 1.0d0
+    end do
+    return
+   end if
+
+   ! Unit vector along the current beam direction
+   nx = px / pnorm
+   ny = py / pnorm
+   nz = pz / pnorm
+
+   ! Target direction is +z = (0,0,1)
+   ez = (/ 0.0d0, 0.0d0, 1.0d0 /)
+
+   ! If already along +z (or very close), identity
+   if (abs(nx) .lt. 1.0d-12 .and. abs(ny) .lt. 1.0d-12 .and. nz .gt. 0.0d0) then
+    R = 0.0d0
+    do i = 1,3
+       R(i,i) = 1.0d0
+    end do
+    return
+   end if
+
+   ! If along -z, rotate by pi around x-axis
+   if (abs(nx) .lt. 1.0d-12 .and. abs(ny) .lt. 1.0d-12 .and. nz .lt. 0.0d0) then
+    R = 0.0d0
+    R(1,1) = 1.0d0
+    R(2,2) = -1.0d0
+    R(3,3) = -1.0d0
+    return
+   end if
+
+   ! General case: axis = n x ez (cross product)
+   ax = ny*ez(3) - nz*ez(2)   ! = ny
+   ay = nz*ez(1) - nx*ez(3)   ! = -nx
+   az = nx*ez(2) - ny*ez(1)   ! = 0
+
+   anorm = sqrt(ax*ax + ay*ay + az*az)
+
+   ! Normalize rotation axis
+   ax = ax / anorm
+   ay = ay / anorm
+   az = az / anorm
+
+   ! cos(theta) = n · ez = nz
+   c  = nz
+   ! Numerical safety: clamp
+   if (c .gt. 1.0d0) c = 1.0d0
+   if (c .lt. -1.0d0) c = -1.0d0
+
+   s  = sqrt(max(0.0d0, 1.0d0 - c*c))
+   t  = 1.0d0 - c
+
+   ! Rodrigues rotation formula: build 3x3 matrix R
+   R(1,1) = t*ax*ax + c
+   R(1,2) = t*ax*ay - s*az
+   R(1,3) = t*ax*az + s*ay
+
+   R(2,1) = t*ax*ay + s*az
+   R(2,2) = t*ay*ay + c
+   R(2,3) = t*ay*az - s*ax
+
+   R(3,1) = t*ax*az - s*ay
+   R(3,2) = t*ay*az + s*ax
+   R(3,3) = t*az*az + c
+end subroutine build_rot_to_z
+
+subroutine rotate(R,p)
+   real*8, intent(in)  :: R(3,3)
+   real*8, intent(inout)  :: p(4)
+   real*8 :: v(3), vrot(3)
+   integer :: i, j
+
+   v(1) = p(2)
+   v(2) = p(3)
+   v(3) = p(4)
+
+   do i = 1,3
+    vrot(i) = 0.0d0
+    do j = 1,3
+       vrot(i) = vrot(i) + R(i,j)*v(j)
+    end do
+   end do
+
+   p(2) = vrot(1)
+   p(3) = vrot(2)
+   p(4) = vrot(3)
+
+end subroutine rotate
+
 end module mathtool
     
