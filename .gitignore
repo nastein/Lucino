@@ -5,3 +5,10 @@
 EM_MEC/All_Angles/FluxFolded/flux_table.dat
 *.ipynb
 *.png
+*.cmake
+*.make
+MEC/build_SemiExclusive/
+MEC/build_AllAngles/
+MEC/build_FluxFolded/
+MEC/build_Fixed_Kinematics/
+
