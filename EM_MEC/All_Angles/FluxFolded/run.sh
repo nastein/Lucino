@@ -1,1 +1,0 @@
-mpirun -np 8 ./a.out < input_xsec_tot.in

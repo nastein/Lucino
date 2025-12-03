@@ -1,6 +1,0 @@
-Here we have the EM MEC generator that uses response functions instead of contracting directly the leptonic and hadronic response tensors
-This is to better compare with results in the literature who focus on the contribution of the different responses
-
-We also use no potential for the delta as well as only keeping the real part of the delta propagator 
-
-
