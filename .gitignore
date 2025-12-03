@@ -2,4 +2,6 @@
 *.mod
 *.in
 *.o
-
+EM_MEC/All_Angles/FluxFolded/flux_table.dat
+*.ipynb
+*.png
