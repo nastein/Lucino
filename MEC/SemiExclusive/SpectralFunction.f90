@@ -1,29 +1,30 @@
 module SFmod
-	use mathtool
-	implicit none
-	integer*4, private, save :: mode, n_sf1, n_sf2
-	integer*4, private, parameter :: np0=40
+   use constants
+   use mathtool
+   implicit none
+   integer*4, private, save :: mode, n_sf1, n_sf2
+   integer*4, private, parameter :: np0=40
    real*8, private, save :: xpf
-	real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0
-	real*8, private, allocatable :: p1(:),p2(:),n_pp(:,:),n_np(:,:)
-	real*8, private, allocatable :: dp1(:),dp2(:)
-	real*8, private :: norm_pp, norm_np
+   real*8, private, parameter :: pi=acos(-1.0d0)
+   real*8, private, allocatable :: p1(:),p2(:),n_pp(:,:),n_np(:,:)
+   real*8, private, allocatable :: dp1(:),dp2(:)
+   real*8, private :: norm_pp, norm_np
 
 contains
 
 subroutine SF_init(mode_in,xpf_in,n_sf1_in,n_sf2_in,norm_pp_in,norm_np_in)
-	use mympi
-	implicit none
-	integer*4,intent(in) :: mode_in
-	integer*4, intent(out) :: n_sf1_in, n_sf2_in
-	real*8, intent(out) :: norm_np_in, norm_pp_in
-	real*8 :: hp, xpf_in, dummy
-	integer*4 :: i,j
+   use mympi
+   implicit none
+   integer*4,intent(in) :: mode_in
+   integer*4, intent(out) :: n_sf1_in, n_sf2_in
+   real*8, intent(out) :: norm_np_in, norm_pp_in
+   real*8 :: hp, xpf_in, dummy
+   integer*4 :: i,j
 
-	mode = mode_in
-	xpf = xpf_in
+   mode = mode_in
+   xpf = xpf_in
 
-	select case (mode)
+   select case (mode)
 
    case (0) !FG sampling p1,p2
    	if(myrank().eq.0) write(6,*)'Using FG'
@@ -87,8 +88,8 @@ subroutine SF_init(mode_in,xpf_in,n_sf1_in,n_sf2_in,norm_pp_in,norm_np_in)
 
    end select
 
-	n_sf1_in = n_sf1
-	n_sf2_in = n_sf2
+   n_sf1_in = n_sf1
+   n_sf2_in = n_sf2
 
 
    !Bin widths aren't uniform, use trapezoidal integration
@@ -98,23 +99,23 @@ subroutine SF_init(mode_in,xpf_in,n_sf1_in,n_sf2_in,norm_pp_in,norm_np_in)
 
    call NormalizeMomDist()
 
-	norm_np_in = norm_np  
-	norm_pp_in = norm_pp
+   norm_np_in = norm_np  
+   norm_pp_in = norm_pp
 
 end subroutine SF_init
 
 subroutine SF_fill(n_pp_in,n_np_in,p1_in,p2_in)
-	real*8 :: p1_in(n_sf1),p2_in(n_sf2),n_pp_in(n_sf1,n_sf2),n_np_in(n_sf1,n_sf2)
-	p1_in = p1 
-	p2_in = p2
-	n_np_in = n_np  
-	n_pp_in = n_pp
+   real*8 :: p1_in(n_sf1),p2_in(n_sf2),n_pp_in(n_sf1,n_sf2),n_np_in(n_sf1,n_sf2)
+   p1_in = p1 
+   p2_in = p2
+   n_np_in = n_np  
+   n_pp_in = n_pp
 
 end subroutine SF_fill
 
 subroutine NormalizeMomDist()
-	use mympi
-	integer*4 :: i,j
+   use mympi
+   integer*4 :: i,j
   
    norm_pp=0.0d0 
    norm_np=0.0d0
