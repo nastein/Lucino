@@ -1,0 +1,11 @@
+# The fortran modules provided by this target.
+provides
+ dirac_matrices.mod
+ event_module.mod
+ fast_flux_module.mod
+ isospin_op.mod
+ mathtool.mod
+ mc_module.mod
+ mympi.mod
+ progress_bar.mod
+ sfmod.mod

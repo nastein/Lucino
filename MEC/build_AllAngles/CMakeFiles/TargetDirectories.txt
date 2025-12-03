@@ -1,0 +1,4 @@
+/Users/noah/Physics/Lucino/MEC/build_AllAngles/CMakeFiles/allangles.dir
+/Users/noah/Physics/Lucino/MEC/build_AllAngles/CMakeFiles/copy_data.dir
+/Users/noah/Physics/Lucino/MEC/build_AllAngles/CMakeFiles/edit_cache.dir
+/Users/noah/Physics/Lucino/MEC/build_AllAngles/CMakeFiles/rebuild_cache.dir

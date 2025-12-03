@@ -1,0 +1,18 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/fixed_kin.dir/SpectralFunction.f90.o"
+  "CMakeFiles/fixed_kin.dir/currents_opt_v3.f90.o"
+  "CMakeFiles/fixed_kin.dir/em_evgen.f90.o"
+  "CMakeFiles/fixed_kin.dir/event_module.f90.o"
+  "CMakeFiles/fixed_kin.dir/integrated_diff_xsec_v5.f90.o"
+  "CMakeFiles/fixed_kin.dir/isospin_operators.f90.o"
+  "CMakeFiles/fixed_kin.dir/mathtool.f90.o"
+  "CMakeFiles/fixed_kin.dir/mympi.f90.o"
+  "CMakeFiles/fixed_kin.dir/progress_bar.f90.o"
+  "fixed_kin"
+  "fixed_kin.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang Fortran)
+  include(CMakeFiles/fixed_kin.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()
