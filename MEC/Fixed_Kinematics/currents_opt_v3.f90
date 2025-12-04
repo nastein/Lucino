@@ -1,16 +1,14 @@
 module dirac_matrices
+    use constants
     implicit none
     integer*4, private, save :: i_fl, pair_isospin,DeltapropFull,Deltaprop3half,DeltaPot,intfsign
     integer*4, private, save :: np_del
     complex*16, private, parameter :: czero = (0.0d0,0.0d0)
     complex*16, private, parameter :: cone  = (1.0d0,0.0d0)
     complex*16, private, parameter :: ci    = (0.0d0,1.0d0)
-    real*8, private, parameter :: pi=acos(-1.0d0)    
-    real*8, private, parameter :: fgnd=5.0d0,fpind=0.54d0
-    real*8, private, parameter :: fstar=2.14d0, xmrho=775.8d0,ga=1.26d0,fpinn2=0.08d0*4.0d0*pi! 2.14/2.13 from JUAN, !=0.08*4.0d0*pi ARTURO
+    real*8, private, parameter :: pi=acos(-1.0d0)   
     real*8, private, save :: cV(3),cA(3),gep
     real*8, private, allocatable :: pdel(:),pot_del(:)
-    real*8, private, parameter :: lpi=1300.0d0,lpind=1150.0d0
     real*8, private, save :: mqe, qval
     complex*16, private, save :: sig(3,2,2),id(2,2),id4(4,4)
     complex*16, save :: up(2),down(2)
@@ -31,7 +29,7 @@ module dirac_matrices
     complex*16, private, save :: J_pif_A(4,4,4),J_sea1_A(4,4,4),J_sea2_A(4,4,4),J_pl1_A(4,4,4),J_pl2_A(4,4,4)   
     complex*16, private, save :: IsoDeltaA(2,2,2,2),IsoDeltaB(2,2,2,2)
     complex*16, private, save :: IsoDeltaC(2,2,2,2),IsoDeltaD(2,2,2,2),IsoPi(2,2,2,2)
-    real*8, private,save :: xmd,xmn,xmpi,w,xmlept1,xmlept2,ax
+    real*8, private,save :: w,xmlept1,xmlept2,ax
 contains
 
 subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
@@ -47,9 +45,6 @@ subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmlept1_in, &
     real*8 :: xmd_in,xmn_in,xmpi_in, xmlept1_in, xmlept2_in
     logical :: CC_in
 
-    xmd=xmd_in
-    xmn=xmn_in
-    xmpi=xmpi_in
     xmlept1 = xmlept1_in
     xmlept2 = xmlept2_in
     DeltapropFull = DeltapropFull_in

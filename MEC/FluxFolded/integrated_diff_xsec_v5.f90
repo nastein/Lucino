@@ -1,5 +1,6 @@
 module mc_module
    use event_module
+   use constants
    implicit none 
    integer*4, private, save :: xA,nZ,i_mode,np,ne,nwlk,gen_events,isospin,nenu
    complex*16, private, parameter :: czero = (0.0d0,0.0d0)
@@ -15,14 +16,9 @@ module mc_module
    real*8, private, save:: norm,norm0,norm1
    real*8, private, save:: mlept
    !real*8, private, save:: wmax,q2max,q2min
-   real*8, private, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0,ppmax=1.0d0*1.e3
-   real*8, private,parameter :: G_F = 1.1664e-11,cb=0.9741699d0,alpha=1.0d0/137.0d0
+   real*8, private, parameter :: pi=acos(-1.0d0)
    real*8, private, allocatable :: p1(:),p2(:),dp1(:,:),dp0(:,:)
    integer*4, private, save :: n_sf1,n_sf2
-   real*8, parameter :: mp=938.272d0,mn=939.565d0, &
-      &  mu=931.494061d0,mpi=139.5d0
-   real*8, private, save:: xmn
-   real*8, parameter :: xme=0.0d0
    real*8, parameter :: small=1e-12 
    integer*8, private, allocatable, save :: irn_int(:),irn_event(:)
    integer*4, private, save :: iso_configs
@@ -93,8 +89,6 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_mode_in,irn_int_in, &
       allowed_isocomb(5,:) = [2,1,2,1]
       allowed_isocomb(6,:) = [2,1,1,2]
    endif
-
-   xmn = (mn + mp)/2.0d0
 
    allocate(irn_int(nwlk),irn_event(nwlk))
    irn_int(:)=irn_int_in(:)
@@ -594,8 +588,6 @@ subroutine int_eval(kprobe_4,klept_4,nuc1P4,nuc2P4, &
    use mathtool
    implicit none
    integer*4 :: i,j,i1,i2,i1p,i2p
-   real*8, parameter :: lsq=0.71*1.e6,l3=3.5d0*1.e6,xma2=1.1025d0*1.e6,xmad=950.0d0
-   real*8, parameter :: fstar=2.13d0,eps=10.0d0,e_gs=-92.16,e_bg=-64.75
    real*8 :: pp1,den,jac,arg,q(4),pj1,pj2
    real*8 :: w,q2,rho,norm,gep,np1
    real*8 :: ca4,ca5,ca6,cv3,cv4,cv5,cV(3),cA(3)
@@ -704,7 +696,7 @@ subroutine int_eval(kprobe_4,klept_4,nuc1P4,nuc2P4, &
    !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
    ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
    ca4=-ca5/4.0d0
-   ca6=ca5 *(xmn**2)/(mpi**2 - q2)
+   ca6=ca5 *(xmn**2)/(xmpi**2 - q2)
    !if(ca6.gt.ca5) then 
    !   write(6,*)'ca6 = ', ca6
    !   write(6,*)'ca5 = ', ca5

@@ -1,4 +1,0 @@
-/Users/noah/Physics/Lucino/MEC/build_Fixed_Kinematics/CMakeFiles/fixed_kin.dir
-/Users/noah/Physics/Lucino/MEC/build_Fixed_Kinematics/CMakeFiles/copy_data.dir
-/Users/noah/Physics/Lucino/MEC/build_Fixed_Kinematics/CMakeFiles/edit_cache.dir
-/Users/noah/Physics/Lucino/MEC/build_Fixed_Kinematics/CMakeFiles/rebuild_cache.dir

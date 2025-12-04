@@ -11,6 +11,7 @@ add_executable(flux_folded
     progress_bar.f90
     mathtool.f90
     mympi.f90
+    Constants.f90
     SpectralFunction.f90
     fast_flux.f90
     event_module.f90
@@ -35,6 +36,7 @@ set(DATA_FILES
     flux_nu_MINERvA.dat
     input_xsec_tot.in
     rho_1.dat
+    MEC_constants.dat
 )
 
 set(COPIED_FILES)

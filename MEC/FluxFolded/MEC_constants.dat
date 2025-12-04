@@ -1,0 +1,30 @@
+&mecconst
+  G_F    = 1.1664d-11
+  cb     = 0.9741699d0
+  alpha  = 7.29927d-3
+  hbarc  = 197.327053d0
+
+  mp     = 938.272d0
+  mn     = 939.565d0
+  mu     = 931.494061d0
+  xmpi   = 139.5d0
+  xmmu   = 105.658357d0
+  xmrho  = 775.8d0
+  xmd    = 1232.0d0
+
+  e_gs   = -92.16d0
+  e_bg   = -64.75d0
+
+  lsq    = 710000.0d0
+  xma2   = 1102500.0d0
+  xmad   = 950.0d0
+  cv3norm = 2.15d0
+  ca5norm = 1.18d0
+  lpi    = 1300.0d0
+  lpind  = 1150.0d0
+
+  fstar  = 2.15d0
+  fpinn2 = 1.0053088d0
+  ga     = 1.26d0
+/
+

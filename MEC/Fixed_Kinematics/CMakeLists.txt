@@ -12,6 +12,7 @@ add_executable(fixed_kin
     mathtool.f90
     mympi.f90
     SpectralFunction.f90
+    Constants.f90
     event_module.f90
     isospin_operators.f90
     currents_opt_v3.f90
@@ -32,6 +33,7 @@ set(DATA_FILES
     n2b_c12_new_fmt.dat
     input_xsec_tot.in
     rho_1.dat
+    MEC_constants.dat
 )
 
 set(COPIED_FILES)

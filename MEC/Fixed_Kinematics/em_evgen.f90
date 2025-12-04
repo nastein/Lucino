@@ -1,13 +1,13 @@
 program ew_eventgen
    use event_module
+   use constants
    use mc_module
    use dirac_matrices
    use mathtool
    use mympi
    
    implicit none
-   real*8, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0
-   real*8, parameter :: xmd=1232.0d0,xmn=939.0d0,xmpi=139.d0,xmmu=105.658357
+   real*8, parameter :: pi=acos(-1.0d0)
    real*8 :: ti,tf 
    integer :: clocks(2), count_rate, seeds(2)
    integer*4 :: nw,nZ,xA,i_mode,j,ilept,gen_events,num_events,nwlk,isospin
@@ -27,6 +27,8 @@ program ew_eventgen
    type(event_container_t) :: saved_events
 
    call init0()
+
+   call read_physics_constants('MEC_constants.dat')
 
    if (myrank().eq.0) then
       !Getting a random seed from my computer

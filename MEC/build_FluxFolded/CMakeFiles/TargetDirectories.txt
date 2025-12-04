@@ -1,4 +1,0 @@
-/Users/noah/Physics/Lucino/MEC/build_FluxFolded/CMakeFiles/flux_folded.dir
-/Users/noah/Physics/Lucino/MEC/build_FluxFolded/CMakeFiles/copy_data.dir
-/Users/noah/Physics/Lucino/MEC/build_FluxFolded/CMakeFiles/edit_cache.dir
-/Users/noah/Physics/Lucino/MEC/build_FluxFolded/CMakeFiles/rebuild_cache.dir
