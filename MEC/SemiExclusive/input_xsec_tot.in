@@ -1,0 +1,19 @@
+50000         		#number of events to generate
+322  				#number of walkers
+478. 				#enu
+303.      			#qval
+263.    			#omega
+113.     			#thetaproton
+0.      			#phiproton
+228.0d0    			#fermi momentum
+40.0    			#Eshift for FG
+0                  	#1 = Real + Imag prop, 0 = Real prop
+0                  	#1 = 3/2 prop, 0 = 3/2 + 1/2 prop
+0 					#1 = Delta Potential on, 0 = Delta Potential Off
+-1                 # 1 = Noemi's pi-delta intf, -1 = Amaro pi-delta intf
+6  12              	# nZ, nA
+0     				# 1 if Global Fermi Gas 
+.true.             # true  = rotate so beam is along z
+.false.             #CC = true, EM = false
+
+
