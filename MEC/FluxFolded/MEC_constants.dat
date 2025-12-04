@@ -1,19 +1,19 @@
 &mecconst
-  G_F    = 1.1664d-11
-  cb     = 0.9741699d0
-  alpha  = 7.29927d-3
-  hbarc  = 197.327053d0
+  G_F    = 1.1664d-11     !these don't change
+  cb     = 0.9741699d0    !these don't change
+  alpha  = 7.29927d-3     !these don't change
+  hbarc  = 197.327053d0   !these don't change
 
-  mp     = 938.272d0
-  mn     = 939.565d0
-  mu     = 931.494061d0
-  xmpi   = 139.5d0
-  xmmu   = 105.658357d0
-  xmrho  = 775.8d0
-  xmd    = 1232.0d0
+  mp     = 938.272d0      !these don't change
+  mn     = 939.565d0      !these don't change
+  mu     = 931.494061d0   !these don't change
+  xmpi   = 139.5d0        !these don't change
+  xmmu   = 105.658357d0   !these don't change
+  xmrho  = 775.8d0        !these don't change
+  xmd    = 1232.0d0       !these don't change
 
-  e_gs   = -92.16d0
-  e_bg   = -64.75d0
+  e_gs   = -92.16d0       !these don't change
+  e_bg   = -64.75d0       !these don't change
 
   lsq    = 710000.0d0
   xma2   = 1102500.0d0
