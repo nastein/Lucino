@@ -92,7 +92,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_mode_in,irn_int_in, &
 
 end subroutine
 
-subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
+subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events, q2min_in)
    use event_module
    use mathtool
    use dirac_matrices
@@ -109,7 +109,7 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
    integer*4 :: ie,ie0,iq,ien,iv,test_iavg
    integer*4 :: nsamples_tmp
 
-   real*8 :: emax,ee
+   real*8 :: emax,ee,q2min_in
    real*8 :: Enu,qval,sig
    real*8 :: pmu,costheta_p,res,q2_p,np1
    real*8 :: enu_max,henu,r_avg,r_err, test_xsec_tot, test_xsec_tot_err
@@ -131,7 +131,11 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
       q2min=2.0d0*Enu**2 - 2.0d0*Enu*sqrt(Enu**2-mlept**2)
    else
       !Set q2min to enforce a lower bound for EM scattering (CHECK THIS)
-      q2min=20000.0d0
+      if (q2min_in.eq.0.0d0) then  
+         write(6,*)'Cannot use q2 = 0 minimum for EM interactions'
+         stop  
+      endif
+      q2min=q2min_in
    endif
 
    r_avg=0.0d0
@@ -227,7 +231,7 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events)
    call maxallr1(maximum_weight,global_max_weight)
    if(myrank().eq.0) print*,'global max weight = ', global_max_weight
    !Safety factor
-   maximum_weight = global_max_weight*1.7d0
+   maximum_weight = global_max_weight*2.0d0
    if(myrank().eq.0) print*,'reweighted global max weight = ', maximum_weight
    my_events%max_weight = maximum_weight
    call MPI_Barrier(mpi_comm_world,ierror)

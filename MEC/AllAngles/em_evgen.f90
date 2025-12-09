@@ -13,7 +13,7 @@ program ew_eventgen
    integer*4 :: DeltaPropFull,DeltaProp3half,DeltaPot,intfsign,np_del
    integer*4 :: gen_events_perproc, ierr
    integer*4 :: local_trials, global_trials, local_events, global_events
-   real*8 :: wmax,enu,thetalept,xpf,Eshift,hw,sig,sig_err
+   real*8 :: wmax,enu,thetalept,xpf,Eshift,hw,sig,sig_err,q2min
    real*8 :: xmlept,start,finish,total_sig,total_sig_err
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
    real*8,allocatable :: pdel(:),pot_del(:)
@@ -43,6 +43,7 @@ program ew_eventgen
       read(5,*) gen_events
       read(5,*) nwlk
       read(5,*) enu 
+      read(5,*) q2min
       read(5,*) xpf
       read(5,*) Eshift
       read(5,*) DeltaPropFull
@@ -100,6 +101,7 @@ program ew_eventgen
    call bcast(gen_events)
    call bcast(nwlk)
    call bcast(enu)
+   call bcast(q2min)
    call bcast(seeds(1))
    call bcast(seeds(2))
    call bcast(ilept)
@@ -169,7 +171,7 @@ program ew_eventgen
    endif
 
    !Compute the cross section and generate events
-   call mc_eval(enu,sig,sig_err,saved_events)
+   call mc_eval(enu,sig,sig_err,saved_events,q2min)
 
    !Print events to temp files
    call print_unweighted_events(saved_events,11+myrank())
