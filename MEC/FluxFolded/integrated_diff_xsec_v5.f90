@@ -27,7 +27,8 @@ module mc_module
    real*8,save :: w_abs,w_max_seen, w_sum, w2_sum,mean_w,rms_w
    integer*4,save :: n_w
    logical, private, save :: rotate_beam_along_z
-   real*8, save :: qfree_save, qtilde_save, ca6_save
+   real*8, save :: qfree_save, qtilde_save, ca6_save,q2_save
+   integer*4, save :: num_above_max_weight
 
 contains
 
@@ -63,6 +64,8 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_mode_in,irn_int_in, &
    w_sum = 0.0d0 
    w2_sum = 0.0d0 
    n_w = 0
+
+   num_above_max_weight = 0
    
    if(CC.eqv..true.) then
       if(myrank().eq.0) then
@@ -200,7 +203,7 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
             write(6,'("xsec = ",ES24.16,", err = ",F12.6,"%")') &
             &  wmean, 100.0d0*xsec_err_tmp/wmean
              
-            if(100.0d0*xsec_err_tmp/wmean.lt.0.5d0) then 
+            if(100.0d0*xsec_err_tmp/wmean.lt.1.0d0) then 
                converged = .true.
             endif
          endif
@@ -241,7 +244,7 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
    call maxallr1(maximum_weight,global_max_weight)
    if(myrank().eq.0) print*,'global max weight = ', global_max_weight
    !Safety factor
-   maximum_weight = global_max_weight*1.8d0
+   maximum_weight = global_max_weight*1.0d0
    if(myrank().eq.0) print*,'reweighted global max weight = ', maximum_weight
    my_events%max_weight = maximum_weight
    call MPI_Barrier(mpi_comm_world,ierror)
@@ -266,6 +269,8 @@ subroutine mc_eval(xsec_tot, xsec_err_tot, my_events)
    enddo
 
    call MPI_Barrier(mpi_comm_world,ierror)
+
+   !write(6,*)'number of events above max weight = ', num_above_max_weight
    
    return
 
@@ -402,6 +407,7 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
    !   write(6,*) 'w = ', w_abs
    !   write(6,*) 'qfree - qtilde = ', qfree_save - qtilde_save
    !   write(6,*) 'ca6 = ', ca6_save
+   !   write(6,*)' q2 = ', q2_save
    !endif
    w_max_seen = max(w_max_seen,w_abs)
    w_sum = w_sum + w_abs
@@ -414,23 +420,38 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,q2range,wrange,i_avg
       !write(2,*)w_abs,ca6_save,qfree_save - qtilde_save
    endif
 
-   if(ABS(f).ge.max_weight) then
-      if(eventgen.eqv..true.) then
-         print*,'w_i > w_max. Unfortunately we pulled a weight ' &
-         &  ,' greater than the max weight, rerun the simulation!'
-         stop
-      endif 
-      !Handle negative weights
-      max_weight = ABS(f) 
+   !if(ABS(f).ge.max_weight) then
+   !   if(eventgen.eqv..true.) then
+   !      print*,'w_i > w_max. Unfortunately we pulled a weight ' &
+   !      &  ,' greater than the max weight, rerun the simulation!'
+   !      stop
+   !   endif 
+   !   !Handle negative weights
+   !   max_weight = ABS(f) 
+   !endif
+
+   if(eventgen.eqv..false.) then 
+      if(ABS(f).ge.max_weight) then 
+         max_weight = ABS(f)
+      endif
    endif
 
    !If we're generating events, unweight the event
+   !If the weight is higher than the max weight
+   !then add the event with it's weight
    if(eventgen.eqv..true.) then
       event%weight = f
       event%unweighted = .FALSE.
       ratio = ABS(f)/events%max_weight
       r = ran()
       events%trials = events%trials + 1
+
+      if(ABS(f).ge.max_weight) then 
+         num_above_max_weight = num_above_max_weight + 1
+         event%unweighted=.TRUE.
+         call events%add_event(event)
+      endif
+
       !Only add unweighted events to the file
       if(r.le.ratio) then
          event%unweighted=.TRUE.
@@ -607,6 +628,8 @@ subroutine int_eval(kprobe_4,klept_4,nuc1P4,nuc2P4, &
    real*8 :: nuc1P4(4),nuc2P4(4),nuc1PP4(4),nuc2PP4(4)
 
    q2=q_4(1)**2 - sum(q_4(2:4)**2)
+
+   q2_save = q2
 
    qfree_save = w
 

@@ -21,7 +21,7 @@
   cv3norm = 2.15d0
   ca5norm = 1.18d0
   lpi    = 1300.0d0
-  lpind  = 1150.0d0
+  lpind  = 1200.0d0
 
   fstar  = 2.15d0
   fpinn2 = 1.0053088d0

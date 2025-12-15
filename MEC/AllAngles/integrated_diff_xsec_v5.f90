@@ -1,6 +1,7 @@
 module mc_module
    use event_module
    use constants
+   use dynvec_real8
    implicit none 
    integer*4, private, save :: xA,nZ,i_mode,np,ne,nwlk,gen_events,isospin
    complex*16, private, parameter :: czero = (0.0d0,0.0d0)
@@ -24,10 +25,13 @@ module mc_module
    logical, private, save :: CC
    integer*4, private, allocatable, save :: allowed_isocomb(:,:)
    logical, private, save :: rotate_beam_along_z
+   type(r8vec_t), private, save :: weights_array
+   real*8, private, save :: weight99
+   integer*4, private, save  :: num_eval,num_eval_total,unweight_mode
 contains
 
-subroutine mc_init(gen_events_in,xsec_acc_in,i_mode_in,irn_int_in, &
-      &  irn_event_in,nwlk_in,xpf_in,Eshift_in, &
+subroutine mc_init(gen_events_in,xsec_acc_in,unweight_mode_in,i_mode_in, &
+      &  irn_int_in,irn_event_in,nwlk_in,xpf_in,Eshift_in, &
       &  mlept_in,xA_in,nZ_in,CC_in,rotate_beam_along_z_in)
    use mathtool
    use SFmod
@@ -37,7 +41,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_mode_in,irn_int_in, &
 
    integer*8 :: irn_int_in(nwlk_in),irn_event_in(nwlk_in)
    integer*4 :: nZ_in,xA_in,i_mode_in,i,j,ne0,ien,nwlk_in
-   integer*4 :: gen_events_in,ipot,isospin_in
+   integer*4 :: gen_events_in,ipot,isospin_in,unweight_mode_in
    real*8 :: xpf_in,mlept_in,hp,he,thetalept_in,dummy,xsec_acc_in
    real*8 :: Eshift_in
    logical :: CC_in, rotate_beam_along_z_in
@@ -45,6 +49,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_mode_in,irn_int_in, &
    gen_events=gen_events_in
    xsec_acc=xsec_acc_in
    nwlk=nwlk_in
+   unweight_mode=unweight_mode_in
    mlept=mlept_in
    xpf=xpf_in
    Eshift=Eshift_in
@@ -93,6 +98,7 @@ subroutine mc_init(gen_events_in,xsec_acc_in,i_mode_in,irn_int_in, &
 end subroutine
 
 subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events, q2min_in)
+   use select_tools
    use event_module
    use mathtool
    use dirac_matrices
@@ -121,6 +127,13 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events, q2min_in)
    real*8 :: xsec_sum_tmp,xsec_sqsum_tmp,wmean,w2mean,xsec_err_tmp
    logical :: converged
    type(event_container_t), intent(inout) :: my_events
+
+   !Initialize statistics module to
+   !Compute 99% weight
+   call r8vec_init(weights_array,cap0=200000)
+
+   num_eval = 0
+   num_eval_total = 0
 
    converged = .false.
 
@@ -161,7 +174,6 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events, q2min_in)
    !Initialize integrator to a random start point
    call mc_random_startpoint(g_o,i1_o,i2_o,i1p_o,i2p_o,j1_o,j2_o,q2_o,w_o)
 
-
    call MPI_Barrier(mpi_comm_world,ierror)
 
    !Compute total cross section to necessary precision
@@ -190,7 +202,7 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events, q2min_in)
             write(6,'("xsec = ",ES24.16,", err = ",F12.6,"%")') &
             &  wmean, 100.0d0*xsec_err_tmp/wmean
 
-            if(100.0d0*xsec_err_tmp/wmean.lt.0.5d0) then 
+            if(100.0d0*xsec_err_tmp/wmean.lt.1.0d0) then 
                converged = .true.
             endif
          endif
@@ -199,6 +211,23 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events, q2min_in)
    enddo
 
    call MPI_Barrier(mpi_comm_world,ierror)
+
+   call addall(num_eval,num_eval_total)
+   if(myrank() == 0) then 
+      write(6,*)'total number of evals = ', num_eval_total
+   endif
+
+   call r8vec_shrink(weights_array) 
+
+   call compute_global_p99_gatherv(mpi_comm_world, weights_array%a(1:weights_array%n), 0.99d0, weight99)
+
+   if(myrank()== 0) then
+      write(6,*)'99th percentile weight = ', weight99
+   endif
+
+  !call check_threshold(mpi_comm_world, weights_array%a(1:weights_array%n), weight99, 0.99d0)
+   call r8vec_free(weights_array)
+
 
    if(i_avg.gt.0) then
       xsec=r_avg
@@ -231,11 +260,12 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events, q2min_in)
    call maxallr1(maximum_weight,global_max_weight)
    if(myrank().eq.0) print*,'global max weight = ', global_max_weight
    !Safety factor
-   maximum_weight = global_max_weight*2.0d0
-   if(myrank().eq.0) print*,'reweighted global max weight = ', maximum_weight
-   my_events%max_weight = maximum_weight
-   call MPI_Barrier(mpi_comm_world,ierror)
+   maximum_weight = global_max_weight!*2.0d0
+   !if(myrank().eq.0) print*,'reweighted global max weight = ', maximum_weight
 
+   my_events%max_weight = maximum_weight
+   my_events%weight_99th = weight99
+   call MPI_Barrier(mpi_comm_world,ierror)
    
    !Now start to generate events
    do while(my_events%size.lt.gen_events)
@@ -363,29 +393,21 @@ subroutine mc_calculate_xsec(Enu,i1,i2,i1p,i2p,j1,j2,q2,w,g,i_avg,events,max_wei
    !Aug 26 Factor of 4 is because I consider antisymmetric initial and final states
    f=f*(2.0d0*pi)/g/4.0d0
 
-   if(ABS(f).ge.max_weight) then
-      if(eventgen.eqv..true.) then
-         print*,'w_i > w_max. Unfortunately we pulled a weight ' &
-         &  ,' greater than the max weight, rerun the simulation!'
-         stop
-      endif 
-      !Handle negative weights
-      max_weight = ABS(f) 
+   num_eval = num_eval + 1
+
+   if(eventgen.eqv..false.) then 
+      call r8vec_push(weights_array, ABS(f))
+      if(ABS(f).ge.max_weight) then 
+         max_weight = ABS(f)
+      endif
    endif
 
-   !If we're generating events, unweight the event
+   !If we're generating events, try to unweight the event
    if(eventgen.eqv..true.) then
       event%weight = f
       event%unweighted = .FALSE.
-      ratio = ABS(f)/events%max_weight
-      r = ran()
-      events%trials = events%trials + 1
-      !Only add unweighted events to the file
-      if(r.le.ratio) then
-         event%unweighted=.TRUE.
-         event%weight=SIGN(events%max_weight,f)
-         call events%add_event(event)
-      endif
+
+      call try_unweight_event(events,event,unweight_mode)
    endif
 
    r_avg=r_avg+f
@@ -640,8 +662,8 @@ subroutine int_eval(kprobe_4,klept_4,nuc1P4,nuc2P4, &
    cv3=2.13d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
    cv5=0.48d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/(0.776d0*lsq))*sqrt(3.0d0/2.0d0)
-   ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
-   !ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
+   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
    ca4=-ca5/4.0d0
    ca6=ca5*xmn**2 /(xmpi**2 - q2)
 

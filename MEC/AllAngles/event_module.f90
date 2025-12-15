@@ -16,6 +16,7 @@ module event_module
     type :: event_container_t
         type(event_t), allocatable :: events(:)
         real*8 :: max_weight=0
+        real*8 :: weight_99th
         integer*4 :: size = 0
         integer*4 :: num_gen_events=0
         integer*4 :: capacity = 0
@@ -86,24 +87,6 @@ module event_module
 
         end subroutine print_unweighted_events
 
-        subroutine unweight_events(this)
-            type(event_container_t), intent(inout) :: this
-            integer*4 :: i
-            real*8 :: ratio,r
-
-            do i=1,this%size
-                ratio = this%events(i)%weight/this%max_weight
-                r = ran()
-
-                if(r.le.ratio) then
-                    this%events(i)%unweighted=.TRUE.
-                    print*,'r = ', r
-                    print*,'ratio = ', ratio
-                endif
-            enddo
-
-        end subroutine unweight_events
-
         subroutine event_init(event,numPart)
             type(event_t), intent(inout) :: event
             integer*4 :: numPart 
@@ -124,27 +107,50 @@ module event_module
             write(fileunit,*) event%weight
         end subroutine print_event
 
-        subroutine rotate_event(event)
+        subroutine try_unweight_event(this,event,mode)
+            type(event_container_t), intent(inout) :: this
             type(event_t), intent(inout) :: event 
-            integer*4 :: n,i 
-            real*8 :: angle, rot_matrix(3,3), probe_mag, probe_z
+            integer*4, intent(in) :: mode 
+            real*8 :: ratio,r
 
-            n = size(event%particles)
+            this%trials = this%trials + 1
 
-            probe_z = event%particles(1)%p4(4)
-            probe_mag = sqrt(sum(event%particles(1)%p4(2:4)**2))
+            if(mode.eq.1) then 
+                ratio = ABS(event%weight)/this%max_weight
+                r = ran()
 
-            angle = -acos(probe_z/probe_mag)
-            !write(6,*)' rotation angle = ', angle*180.0d0/acos(-1.0d0)
+                if(ABS(event%weight).ge.this%max_weight) then 
+                    event%unweighted = .TRUE.
+                    call this%add_event(event)
 
-            rot_matrix = reshape((/cos(angle), 0.0d0, -sin(angle), 0.0d0, &
-                &   1.0d0, 0.0d0, sin(angle), 0.0d0, cos(angle)/),shape(rot_matrix))
+                    return
+                endif
 
-            do i=1,n
-                event%particles(i)%p4(2:4) = matmul(rot_matrix, event%particles(i)%p4(2:4))
-            enddo
+                if(r.le.ratio) then 
+                    event%unweighted = .TRUE.
+                    event%weight=SIGN(this%max_weight,event%weight)
+                    call this%add_event(event)
+                endif
 
-        end subroutine rotate_event
+            else
+                ratio = ABS(event%weight)/this%weight_99th
+                r = ran()
+                
+                if(ABS(event%weight).ge.this%weight_99th) then 
+                    event%unweighted = .TRUE.
+                    call this%add_event(event)
+
+                    return
+                endif
+
+                if(r.le.ratio) then 
+                    event%unweighted = .TRUE.
+                    event%weight=SIGN(this%weight_99th,event%weight)
+                    call this%add_event(event)
+                endif
+            endif
+
+        end subroutine try_unweight_event
 
 end module
 

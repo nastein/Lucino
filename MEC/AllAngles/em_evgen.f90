@@ -10,6 +10,7 @@ program ew_eventgen
    real*8 :: progress,ti,tf, xsec_acc  
    integer :: clocks(2), count_rate, seeds(2)
    integer*4 :: nw,nZ,xA,i_mode,j,ilept,gen_events,num_events,nwlk,isospin
+   integer*4 :: unweight_mode
    integer*4 :: DeltaPropFull,DeltaProp3half,DeltaPot,intfsign,np_del
    integer*4 :: gen_events_perproc, ierr
    integer*4 :: local_trials, global_trials, local_events, global_events
@@ -42,6 +43,7 @@ program ew_eventgen
       print*,'Seed 2: ', seeds(2)
       read(5,*) gen_events
       read(5,*) nwlk
+      read(5,*) unweight_mode
       read(5,*) enu 
       read(5,*) q2min
       read(5,*) xpf
@@ -76,7 +78,7 @@ program ew_eventgen
          intf_string = 'Amaro'
       endif
 
-      write(fname,'(A,A,A,A,A,A,A,I0,A)') 'test_',trim(int_string) &
+      write(fname,'(A,A,A,A,A,A,A,I0,A)') 'final_',trim(int_string) &
       &  ,'_',trim(FG_string),'_',trim(intf_string),'_Ebeam_', int(enu),'.out'
       
       if (myrank().eq.0) then
@@ -100,6 +102,7 @@ program ew_eventgen
 
    call bcast(gen_events)
    call bcast(nwlk)
+   call bcast(unweight_mode)
    call bcast(enu)
    call bcast(q2min)
    call bcast(seeds(1))
@@ -162,7 +165,7 @@ program ew_eventgen
       &  intfsign,np_del,pdel,pot_del)
 
    !Initialize spectral function and other necessary inputs
-   call mc_init(gen_events_perproc,xsec_acc,i_mode,irn_int,irn_event, &
+   call mc_init(gen_events_perproc,xsec_acc,unweight_mode,i_mode,irn_int,irn_event, &
          &  nwlk,xpf,Eshift,xmlept,xA,nZ,CC,rotate_beam_along_z)
    num_events = 0
 
