@@ -24,13 +24,13 @@ module constants
    real*8, save :: e_bg = -64.75d0
 
    ! And the form-factor-ish parameters you had inside int_eval:
-   real*8, save :: lsq  = 710000.0d0
-   real*8, save :: xma2 = 1102500.0d0
+   real*8, save :: xmV  = 840.0d0
+   real*8, save :: xmA = 1050.0d0
    real*8, save :: xmad = 950.0d0
    real*8, save :: cv3norm = 2.15d0
    real*8, save :: ca5norm = 1.18d0
    real*8, save :: lpi = 1300.0d0 
-   real*8, save :: lpind = 1150.0d0
+   real*8, save :: lpind = 1200.0d0
 
    !pi/delta constants
    real*8, save :: fstar = 2.15d0
@@ -49,7 +49,7 @@ contains
        G_F, cb, alpha, hbarc, &
        mp, mn, mu, xmpi, xmmu, xmrho, xmd, &
        e_gs, e_bg, &
-       lsq, xma2, xmad, cv3norm, ca5norm, lpi, lpind, &
+       xmV, xmA, xmad, cv3norm, ca5norm, lpi, lpind, &
        fstar, fpinn2, ga
 
 

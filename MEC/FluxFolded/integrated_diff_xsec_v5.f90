@@ -616,6 +616,7 @@ subroutine int_eval(kprobe_4,klept_4,nuc1P4,nuc2P4, &
    use mathtool
    implicit none
    integer*4 :: i,j,i1,i2,i1p,i2p
+   real*8 :: xmV2,xmA2
    real*8 :: pp1,den,jac,arg,q(4),pj1,pj2
    real*8 :: w,q2,rho,norm,gep,np1
    real*8 :: ca4,ca5,ca6,cv3,cv4,cv5,cV(3),cA(3)
@@ -719,24 +720,19 @@ subroutine int_eval(kprobe_4,klept_4,nuc1P4,nuc2P4, &
 
    !......define constants and ff
    !q2=w**2 - qval**2
+
+   xmV2 = xmV**2
+   xmA2 = xmA**2
    gep=1.0d0/(1.0d0-q2/lsq)**2 
-   cv3=fstar/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
-   cv4=-1.51d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/4.0d0/lsq)*sqrt(3.0d0/2.0d0)
-   cv5=0.48d0/(1.0d0-q2/lsq)**2/(1.0d0-q2/(0.776d0*lsq))*sqrt(3.0d0/2.0d0)
-   !ca5=1.2d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
+   gep=1.0d0/(1.0d0-q2/xmV2)**2 
+   cv3=2.13d0/(1.0d0-q2/xmV2)**2/(1.0d0-q2/4.0d0/xmV2)*sqrt(3.0d0/2.0d0)
+   cv4=-1.51d0/(1.0d0-q2/xmV2)**2/(1.0d0-q2/4.0d0/xmV2)*sqrt(3.0d0/2.0d0)
+   cv5=0.48d0/(1.0d0-q2/xmV2)**2/(1.0d0-q2/(0.776d0*xmV2))*sqrt(3.0d0/2.0d0)
+   !ca5=1.2d0/(1.0d0-q2/xmA2)**2/(1.0d0-q2/3.0d0/xmA2)*sqrt(3.0d0/2.0d0)
    ca5=1.18/(1.0d0-q2/xmad**2)**2 *sqrt(3.0d0/2.0d0) !....New axial form factor
    ca4=-ca5/4.0d0
-   ca6=ca5 *(xmn**2)/(xmpi**2 - q2)
-   !if(ca6.gt.ca5) then 
-   !   write(6,*)'ca6 = ', ca6
-   !   write(6,*)'ca5 = ', ca5
-   !endif
-
-   !write(6,*)'q2 = ', q2
-   !write(6,*)'ca4 = ', ca4
-   !write(6,*)'ca5 = ', ca5
-   !write(6,*)'denominator = ', (mpi**2 - q2)
-   !write(6,*)'ca6 = ', ca5*xmn**2 /(mpi**2 - q2)
+   ca6=ca5*xmn**2 /(xmpi**2 - q2)
+   
 
    ca6_save = ca6
 

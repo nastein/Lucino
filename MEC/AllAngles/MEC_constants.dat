@@ -15,8 +15,8 @@
   e_gs   = -92.16d0       !these don't change
   e_bg   = -64.75d0       !these don't change
 
-  lsq    = 710000.0d0
-  xma2   = 1102500.0d0
+  xmV    = 840.0d0
+  xmA   = 1050.0d0
   xmad   = 950.0d0
   cv3norm = 2.15d0
   ca5norm = 1.18d0
