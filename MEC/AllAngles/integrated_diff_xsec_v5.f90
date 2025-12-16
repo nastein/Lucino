@@ -219,6 +219,8 @@ subroutine mc_eval(Enu, xsec_tot, xsec_err_tot, my_events, q2min_in)
 
    call r8vec_shrink(weights_array) 
 
+   !call dump_weights_per_rank(mpi_comm_world, weights_array%a(1:weights_array%n))
+
    call compute_global_p99_gatherv(mpi_comm_world, weights_array%a(1:weights_array%n), 0.99d0, weight99)
 
    if(myrank()== 0) then

@@ -6,6 +6,7 @@ module select_tools
   public :: quickselect_kth
   public :: compute_global_p99_gatherv
   public :: check_threshold
+  public :: dump_weights_per_rank
 contains
 
   subroutine quickselect_kth(a, k)
@@ -154,6 +155,27 @@ contains
       write(*,'(a,1pe14.6)') "max(weight > w_thr) = ", max_over_glob
       write(*,'(a,f10.6)') "expected overflow frac ~ ", (1.0d0 - p)
     end if
+  end subroutine
+
+  subroutine dump_weights_per_rank(comm, w_local)
+    use mpi
+    implicit none
+    integer, intent(in) :: comm
+    real(8), intent(in) :: w_local(:)
+
+    integer :: rank, ierr, i, unit
+    character(len=256) :: fname
+
+    call MPI_Comm_rank(comm, rank, ierr)
+
+    write(fname,'("warmup_weights_rank",i0,".txt")') rank
+    open(newunit=unit, file=fname, status="replace", action="write", form="formatted")
+
+    do i = 1, size(w_local)
+      write(unit,'(ES22.14)') w_local(i)
+    end do
+
+    close(unit)
   end subroutine
 
 end module
