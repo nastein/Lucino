@@ -1,6 +1,7 @@
 100000         #number of events to generate
 322  			#number of walkers
-1159. 				#enu
+2               #unweighting method (2 = 99%, 1 = maximum weight)
+1000. 				#enu
 100000.0d0		#q2 min (only used for EM interactions to avoid singularity at q2 = 0)
 225.0d0           #fermi momentum
 40.0    				#Eshift
