@@ -80,11 +80,11 @@ program ew_eventgen
          intf_string = 'Amaro'
       endif
 
-      !write(fname,'(A,A,A,A,A,A,A)') 'test_',trim(int_string),'_',trim(FG_string),'_',trim(intf_string),'_T2K.out'
+      write(fname,'(A,A,A,A,A,A,A)') 'test_',trim(int_string),'_',trim(FG_string),'_',trim(intf_string),'_T2K.out'
       
-      !print*, 'Output file: ', fname
+      print*, 'Output file: ', fname
 
-      write(fname, '(A)') 'test.out'
+      !write(fname, '(A)') 'test.out'
       
 
       fname=trim(fname)
