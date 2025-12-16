@@ -78,7 +78,7 @@ program ew_eventgen
          intf_string = 'Amaro'
       endif
 
-      write(fname,'(A,A,A,A,A,A,A,I0,A)') 'test99_lowstats_',trim(int_string) &
+      write(fname,'(A,A,A,A,A,A,A,I0,A)') 'test_',trim(int_string) &
       &  ,'_',trim(FG_string),'_',trim(intf_string),'_Ebeam_', int(enu),'.out'
       
       if (myrank().eq.0) then
