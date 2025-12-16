@@ -1,7 +1,5 @@
 program ew_eventgen
    use event_module
-   use constants
-   use fast_flux_module
    use mc_module
    use dirac_matrices
    use mathtool
@@ -12,17 +10,18 @@ program ew_eventgen
    real*8 :: progress,ti,tf, xsec_acc  
    integer :: clocks(2), count_rate, seeds(2)
    integer*4 :: nw,nZ,xA,i_mode,j,ilept,gen_events,num_events,nwlk,isospin
+   integer*4 :: unweight_mode
    integer*4 :: DeltaPropFull,DeltaProp3half,DeltaPot,intfsign,np_del
-   integer*4 :: gen_events_perproc, ierr,nenu,bin
+   integer*4 :: gen_events_perproc, ierr
    integer*4 :: local_trials, global_trials, local_events, global_events
-   real*8 :: wmax,thetalept,xpf,Eshift,hw,sig,sig_err,enu_1,enu_2,flux_norm
-   real*8 :: xmlept,start,finish,total_sig,total_sig_err, enu_max,henu
-   real*8, allocatable :: enu_v(:),flux_v(:),enu_width(:),pdel(:),pot_del(:)
+   real*8 :: wmax,enu,thetalept,xpf,Eshift,hw,sig,sig_err,q2min
+   real*8 :: xmlept,start,finish,total_sig,total_sig_err
    integer*8, allocatable :: irn_int(:),irn_event(:),irn_int0(:),irn_event0(:)
+   real*8,allocatable :: pdel(:),pot_del(:)
    integer*8 :: ran1,ran2,i,idx
    character*50 :: intf_string,temp_fname
    character*40 :: nk_fname,int_string,FG_string
-   character*200 :: command,sig_char,theta_str,fname,flux_file
+   character*200 :: command, sig_char, theta_str, fname
    logical :: CC, rotate_beam_along_z
 
    type(event_container_t) :: saved_events
@@ -44,6 +43,9 @@ program ew_eventgen
       print*,'Seed 2: ', seeds(2)
       read(5,*) gen_events
       read(5,*) nwlk
+      read(5,*) unweight_mode
+      read(5,*) enu 
+      read(5,*) q2min
       read(5,*) xpf
       read(5,*) Eshift
       read(5,*) DeltaPropFull
@@ -54,8 +56,6 @@ program ew_eventgen
       read(5,*) i_mode
       read(5,*) rotate_beam_along_z
       read(5,*) CC
-      read(5,*) flux_file
-      close(5)
 
       
       if(CC.eqv..true.) then
@@ -78,29 +78,14 @@ program ew_eventgen
          intf_string = 'Amaro'
       endif
 
-      write(fname,'(A,A,A,A,A,A,A)') 'test_',trim(int_string),'_',trim(FG_string),'_',trim(intf_string),'_T2K.out'
+      write(fname,'(A,A,A,A,A,A,A,I0,A)') 'test99_lowstats_',trim(int_string) &
+      &  ,'_',trim(FG_string),'_',trim(intf_string),'_Ebeam_', int(enu),'.out'
       
-      print*, 'Output file: ', fname
-      
+      if (myrank().eq.0) then
+         print*, 'Output file: ', fname
+      endif
 
       fname=trim(fname)
-
-         !.......flux folded cross section
-      open(unit=5,file=flux_file,status='unknown',form='formatted') 
-      read(5,*) nenu 
-
-      allocate(enu_v(nenu),flux_v(nenu))
-      do i=1,nenu
-         read(5,*) bin, enu_1, enu_2,flux_v(i)
-         enu_v(i)= 0.5d0*(enu_1+enu_2)
-      enddo   
-      close(5)
-      enu_v=enu_v*1.e3
-      flux_v=flux_v*1.e-3
-      henu=enu_v(2)-enu_v(1)
-      flux_norm=sum(flux_v(:))*henu
-      write(6,*) 'The normalization of the flux [10^-5/m^2] is', flux_norm
-      enu_max=enu_v(nenu)
 
       write(6,*)'Reading in Delta Potential'
       open(10, file='rho_1.dat')
@@ -117,6 +102,9 @@ program ew_eventgen
 
    call bcast(gen_events)
    call bcast(nwlk)
+   call bcast(unweight_mode)
+   call bcast(enu)
+   call bcast(q2min)
    call bcast(seeds(1))
    call bcast(seeds(2))
    call bcast(ilept)
@@ -131,14 +119,6 @@ program ew_eventgen
    call bcast(i_mode)
    call bcast(rotate_beam_along_z)
    call bcast(CC)
-   call bcast(flux_norm)
-   call bcast(nenu)
-   if(myrank().ne.0) then
-      allocate(enu_v(nenu),flux_v(nenu))
-   endif
-   call bcast(enu_v)
-   call bcast(flux_v)
-   call bcast(enu_max)
    call bcast(np_del)
    if(myrank().ne.0) then
       allocate(pot_del(np_del),pdel(np_del))
@@ -170,8 +150,6 @@ program ew_eventgen
    !Number of events each processor should generate
    gen_events_perproc = gen_events/nproc()
 
-   call init_flux_lookup(enu_v,flux_v,nenu)
-
    if(CC.eqv..true.) then
       xmlept = xmmu
    else
@@ -183,18 +161,20 @@ program ew_eventgen
    endif
 
    !Initialize currents module
-   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,DeltaPropFull,DeltaProp3half,DeltaPot,&
+   call dirac_matrices_in(xmd,xmn,xmpi,0.0d0,xmlept,CC,DeltaPropFull,DeltaProp3half,DeltaPot, &
       &  intfsign,np_del,pdel,pot_del)
 
    !Initialize spectral function and other necessary inputs
-   call mc_init(gen_events_perproc,xsec_acc,i_mode,irn_int,irn_event, &
+   call mc_init(gen_events_perproc,xsec_acc,unweight_mode,i_mode,irn_int,irn_event, &
          &  nwlk,xpf,Eshift,xmlept,xA,nZ,CC,rotate_beam_along_z)
-
-   call set_up_flux(flux_v,enu_v,enu_max,flux_norm,nenu)
    num_events = 0
 
+   if(myrank().eq.0) then
+      write(6,*) 'Computing total cross section for Ev = ', enu, ' MeV'
+   endif
+
    !Compute the cross section and generate events
-   call mc_eval(sig,sig_err,saved_events)
+   call mc_eval(enu,sig,sig_err,saved_events,q2min)
 
    !Print events to temp files
    call print_unweighted_events(saved_events,11+myrank())

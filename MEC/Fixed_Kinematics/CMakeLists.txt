@@ -7,7 +7,7 @@ project(em_evgen_project LANGUAGES Fortran)
 set(CMAKE_Fortran_COMPILER mpif90)
 
 # Add your executable and its source files
-add_executable(fixed_kin
+add_executable(evgen
     DynamArray.f90
     progress_bar.f90
     mathtool.f90
@@ -19,11 +19,11 @@ add_executable(fixed_kin
     isospin_operators.f90
     currents_opt_v3.f90
     integrated_diff_xsec_v5.f90
-    em_evgen.f90
+    evgen.f90
 )
 
 # Add the same compile flags as in compile_em.sh
-target_compile_options(fixed_kin PRIVATE
+target_compile_options(evgen PRIVATE
     -O3
     -fallow-argument-mismatch
     -march=native
@@ -58,4 +58,4 @@ add_custom_target(copy_data ALL
     DEPENDS ${COPIED_FILES}
 )
 
-add_dependencies(fixed_kin copy_data)
+add_dependencies(evgen copy_data)

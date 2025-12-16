@@ -1,11 +1,12 @@
-100000             # number of events to generate
+500000             # number of events to generate
 322  			   # number of walkers
+2                  #unweighting method (2 = 99%, 1 = maximum weight)
 225.0d0            # fermi momentum
 40.0    		   # Eshift
-0                  # 1 = Real + Im prop, 0 = Real prop
-0                  # 1 = 3/2 prop, 0 = 3/2 + 1/2 prop
-0 				   # 1 = Delta Potential on, 0 = Delta Potential Off
--1                  # 1 = Noemi's pi-delta intf, -1 = Amaro pi-delta intf
+1                  # 1 = Real + Im prop, 0 = Real prop
+1                  # 1 = 3/2 prop, 0 = 3/2 + 1/2 prop
+1 				   # 1 = Delta Potential on, 0 = Delta Potential Off
+1                  # 1 = Noemi's pi-delta intf, -1 = Amaro pi-delta intf
 6  12              # nZ, nA
 0    			   #  0 = FG, 1 = SF(p1,p2), 2 = SF(qrel,Qtot)
 .true.             # true  = rotate so beam is along z
