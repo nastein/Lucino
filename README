@@ -1,15 +1,15 @@
 Currently everything is implemented in MEC. That folder contains all the code to produce unweighted events for CC and EM interactions
 Folders for events at 
-	-monoenergetic leptons at fixed lepton scattering angle 
-	-monoenergetic leptons integrated over everything
-	-Flux folded and integrated over everything
-	-monoenergetic leptons at fixed lepton scattering angle, fixed proton theta/phi (used for (e,e'p))
+	-monoenergetic leptons at fixed lepton scattering angle (Fixed_Kinematics)
+	-monoenergetic leptons integrated over everything (AllAngles)
+	-Flux folded and integrated over everything (FluxFolded)
+	-monoenergetic leptons at fixed lepton scattering angle, fixed proton theta/phi (used for (e,e'p)) (SemiExclusive)
 
 To use one of these, start inside MEC/
 	- make a build directory 'mkdir build_dir'
 	- cd into that build directory 'cd build_dir'
-	- use cmake to compile the source code 'cmake ../source_dir'
+	- use cmake to compile whichever source code directory 'cmake ../source_dir'
 	- build the executable 'make -jN'
-	- executable can be run via '-mpirun -np NCORES ./exec < input_file.dat'
+	- executable can be run via '-mpirun -np NCORES ./evgen < input_file.dat'
 
 
