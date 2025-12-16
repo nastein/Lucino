@@ -723,7 +723,7 @@ subroutine int_eval(kprobe_4,klept_4,nuc1P4,nuc2P4, &
 
    xmV2 = xmV**2
    xmA2 = xmA**2
-   gep=1.0d0/(1.0d0-q2/lsq)**2 
+   gep=1.0d0/(1.0d0-q2/xmV2)**2 
    gep=1.0d0/(1.0d0-q2/xmV2)**2 
    cv3=2.13d0/(1.0d0-q2/xmV2)**2/(1.0d0-q2/4.0d0/xmV2)*sqrt(3.0d0/2.0d0)
    cv4=-1.51d0/(1.0d0-q2/xmV2)**2/(1.0d0-q2/4.0d0/xmV2)*sqrt(3.0d0/2.0d0)
