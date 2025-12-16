@@ -8,11 +8,13 @@ set(CMAKE_Fortran_COMPILER mpif90)
 
 # Add your executable and its source files
 add_executable(fixed_kin
+    DynamArray.f90
     progress_bar.f90
     mathtool.f90
     mympi.f90
-    SpectralFunction.f90
+    Statistics.f90
     Constants.f90
+    SpectralFunction.f90
     event_module.f90
     isospin_operators.f90
     currents_opt_v3.f90
